@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SkinSync AI - Clinical Dermatology Platform</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><text y=%22.9em%22 font-size=%2222%22>🩺</text></svg>">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Bootstrap 5 CSS (grid + utilities only, visuals overridden) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+
+    <!-- App Header -->
+    <header class="app-header">
+        <div class="app-header-inner">
+            <div class="brand">
+                <span class="brand-mark">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2C12 2 5 8.5 5 14a7 7 0 0 0 14 0c0-5.5-7-12-7-12Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                        <path d="M12 6.5C12 6.5 8.5 10.5 8.5 14a3.5 3.5 0 0 0 7 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span class="brand-name">SkinSync <span class="brand-accent">AI</span></span>
+            </div>
+            <div class="header-actions">
+                <span class="header-badge" id="header-status">Clinical Assessment Portal</span>
+                <button class="btn-icon-ghost d-none" id="history-btn" title="View report history">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 12a9 9 0 1 0 3-6.7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3 4v5h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>History</span>
+                </button>
+                <button class="btn-icon-ghost d-none" id="logout-btn" title="Log out">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 17l5-5-5-5M21 12H9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Log out</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Toast container -->
+    <div class="toast-stack" id="toast-stack"></div>
+
+    <main class="app-main">
+
+        <!-- Auth Screen -->
+        <div id="auth-container" class="auth-shell fade-in">
+            <div class="auth-visual">
+                <div class="auth-visual-content">
+                    <span class="eyebrow">AI-Assisted Dermatology</span>
+                    <h1>Personalized skin insight, backed by data.</h1>
+                    <p>Complete a short clinical intake and upload photos to receive an AI-assisted dermatological assessment tailored to your skin profile, lifestyle and history.</p>
+                    <ul class="auth-highlights">
+                        <li><span class="check-dot"></span> Structured 5-step clinical intake</li>
+                        <li><span class="check-dot"></span> Secure, encrypted photo analysis</li>
+                        <li><span class="check-dot"></span> Evidence-based skin profiling</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="auth-panel">
+                <div class="auth-panel-inner">
+                    <div class="mb-4">
+                        <h2 class="auth-title">Welcome</h2>
+                        <p class="auth-subtitle">Sign in to continue your assessment, or create a new patient account.</p>
+                    </div>
+
+                    <div class="segmented-tabs" id="authTab" role="tablist">
+                        <button class="segmented-tab active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button" role="tab">Login</button>
+                        <button class="segmented-tab" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button" role="tab">Register</button>
+                    </div>
+
+                    <div class="tab-content" id="authTabContent">
+                        <div class="tab-pane fade show active" id="login-pane" role="tabpanel">
+                            <form id="login-form" novalidate>
+                                <div class="field-group">
+                                    <label class="field-label">Username</label>
+                                    <input type="text" class="field-input" id="login-username" autocomplete="username" required>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Password</label>
+                                    <input type="password" class="field-input" id="login-password" autocomplete="current-password" required>
+                                </div>
+                                <button type="submit" class="btn-primary w-100 btn-with-spinner">
+                                    <span class="btn-label">Access Portal</span>
+                                    <span class="btn-spinner"></span>
+                                </button>
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="register-pane" role="tabpanel">
+                            <form id="register-form" novalidate>
+                                <div class="field-group">
+                                    <label class="field-label">Username</label>
+                                    <input type="text" class="field-input" id="reg-username" autocomplete="username" required>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Email</label>
+                                    <input type="email" class="field-input" id="reg-email" autocomplete="email" required>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Password</label>
+                                    <input type="password" class="field-input" id="reg-password" autocomplete="new-password" required>
+                                </div>
+                                <button type="submit" class="btn-primary w-100 btn-with-spinner">
+                                    <span class="btn-label">Register Patient</span>
+                                    <span class="btn-spinner"></span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Wizard -->
+        <div id="stepper-container" class="wizard-shell d-none fade-in">
+
+            <!-- Sidebar Stepper -->
+            <aside class="wizard-sidebar">
+                <div class="wizard-sidebar-head">
+                    <h2>Clinical Intake</h2>
+                    <p>Complete every section for an accurate AI assessment.</p>
+                </div>
+                <ol class="step-list" id="step-list">
+                    <li class="step-list-item active" data-step="1">
+                        <span class="step-index-wrap">
+                            <span class="step-index">1</span>
+                            <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <span class="step-text">
+                            <span class="step-title">Skin Profile</span>
+                            <span class="step-desc">Type, tone &amp; concerns</span>
+                        </span>
+                    </li>
+                    <li class="step-list-item" data-step="2">
+                        <span class="step-index-wrap">
+                            <span class="step-index">2</span>
+                            <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <span class="step-text">
+                            <span class="step-title">Lifestyle</span>
+                            <span class="step-desc">Habits &amp; routine</span>
+                        </span>
+                    </li>
+                    <li class="step-list-item" data-step="3">
+                        <span class="step-index-wrap">
+                            <span class="step-index">3</span>
+                            <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <span class="step-text">
+                            <span class="step-title">Allergies</span>
+                            <span class="step-desc">Medical history</span>
+                        </span>
+                    </li>
+                    <li class="step-list-item" data-step="4">
+                        <span class="step-index-wrap">
+                            <span class="step-index">4</span>
+                            <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <span class="step-text">
+                            <span class="step-title">Diet &amp; Habits</span>
+                            <span class="step-desc">Nutrition &amp; intake</span>
+                        </span>
+                    </li>
+                    <li class="step-list-item" data-step="5">
+                        <span class="step-index-wrap">
+                            <span class="step-index">5</span>
+                            <svg class="step-check" width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
+                        <span class="step-text">
+                            <span class="step-title">Photography</span>
+                            <span class="step-desc">Clinical imaging</span>
+                        </span>
+                    </li>
+                </ol>
+                <div class="wizard-sidebar-progress">
+                    <div class="progress-track">
+                        <div class="progress-fill" id="form-progress" style="width: 20%;"></div>
+                    </div>
+                    <span class="progress-label"><span id="progress-percent">20</span>% complete</span>
+                </div>
+            </aside>
+
+            <!-- Form Panel -->
+            <section class="wizard-panel">
+
+                <!-- Step 1: Skin Profile -->
+                <div class="step-content active" id="step-1">
+                    <div class="step-heading">
+                        <span class="step-heading-eyebrow">Step 1 of 5</span>
+                        <h3>Clinical Skin Profile</h3>
+                        <p>Tell us about your baseline skin characteristics.</p>
+                    </div>
+                    <form id="form-step-1" novalidate>
+                        <div class="field-grid">
+                            <div class="field-group">
+                                <label class="field-label">Skin Type</label>
+                                <select class="field-input" id="skin_type" required>
+                                    <option value="">Select option...</option>
+                                    <option value="oily">Oily</option>
+                                    <option value="dry">Dry</option>
+                                    <option value="combination">Combination</option>
+                                    <option value="normal">Normal</option>
+                                    <option value="sensitive">Sensitive</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Sensitivity Level</label>
+                                <select class="field-input" id="sensitivity_level" required>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Skin Tone (Fitzpatrick Scale Reference)</label>
+                                <select class="field-input" id="skin_tone" required>
+                                    <option value="">Select option...</option>
+                                    <option value="fair">Type I - II (Fair / Light)</option>
+                                    <option value="medium">Type III (Medium)</option>
+                                    <option value="olive">Type IV (Olive)</option>
+                                    <option value="brown">Type V (Brown)</option>
+                                    <option value="dark">Type VI (Dark)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Primary Skin Concerns</label>
+                                <select class="field-input" id="skin_concerns" required>
+                                    <option value="">Select primary concern...</option>
+                                    <option value="acne">Acne Vulgaris / Breakouts</option>
+                                    <option value="blackheads">Comedones (Blackheads)</option>
+                                    <option value="pigmentation">Hyperpigmentation</option>
+                                    <option value="wrinkles">Fine Lines / Wrinkles</option>
+                                    <option value="dryness">Severe Dryness / Eczema</option>
+                                    <option value="none">No major concerns</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Acne Severity</label>
+                                <select class="field-input" id="acne_level" required>
+                                    <option value="none">None</option>
+                                    <option value="mild">Mild</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="severe">Severe / Cystic</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Pigmentation Level</label>
+                                <select class="field-input" id="pigmentation_level" required>
+                                    <option value="none">None</option>
+                                    <option value="mild">Mild</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="severe">Severe</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Pore Size</label>
+                                <select class="field-input" id="pore_size" required>
+                                    <option value="small">Small (Invisible)</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="large">Large (Prominent)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Under Eye Area Status</label>
+                                <select class="field-input" id="under_eye_issue" required>
+                                    <option value="none">Normal</option>
+                                    <option value="dark_circles">Periorbital Hyperpigmentation (Dark Circles)</option>
+                                    <option value="puffiness">Periorbital Edema (Puffiness)</option>
+                                    <option value="wrinkles">Periorbital Rhytides (Wrinkles)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Lip Condition</label>
+                                <select class="field-input" id="lip_condition" required>
+                                    <option value="normal">Normal</option>
+                                    <option value="dry">Dry / Chapped</option>
+                                    <option value="pigmented">Pigmented</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Seasonal Reactivity</label>
+                                <select class="field-input" id="seasonal_skin_changes" required>
+                                    <option value="none">Stable year-round</option>
+                                    <option value="dry_winter">Increased dryness in Winter</option>
+                                    <option value="oily_summer">Increased sebum production in Summer</option>
+                                    <option value="both">Reactive to both extremes</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="step-actions step-actions-end">
+                            <button type="submit" class="btn-primary btn-with-spinner">
+                                <span class="btn-label">Continue to Lifestyle</span>
+                                <span class="btn-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 2: Lifestyle Profile -->
+                <div class="step-content d-none" id="step-2">
+                    <div class="step-heading">
+                        <span class="step-heading-eyebrow">Step 2 of 5</span>
+                        <h3>Lifestyle Assessment</h3>
+                        <p>Daily habits that influence your skin's condition.</p>
+                    </div>
+                    <form id="form-step-2" novalidate>
+                        <div class="field-grid">
+                            <div class="field-group">
+                                <label class="field-label">Average Sleep Duration (Hours)</label>
+                                <input type="number" class="field-input" id="sleep_hours" min="1" max="24" required>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Reported Stress Level</label>
+                                <select class="field-input" id="stress_level" required>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Moderate</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Exercise Frequency</label>
+                                <select class="field-input" id="exercise_frequency" required>
+                                    <option value="none">None</option>
+                                    <option value="1-2">1-2 days/week</option>
+                                    <option value="3-4">3-4 days/week</option>
+                                    <option value="5+">5+ days/week</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Average Screen Time</label>
+                                <select class="field-input" id="screen_time" required>
+                                    <option value="low">Under 2 hours</option>
+                                    <option value="medium">2 - 6 hours</option>
+                                    <option value="high">Over 6 hours</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Sunscreen Usage</label>
+                                <select class="field-input" id="sunscreen_usage" required>
+                                    <option value="never">Never</option>
+                                    <option value="rarely">Rarely (Only when sunny/outdoors)</option>
+                                    <option value="sometimes">Sometimes</option>
+                                    <option value="always">Always (Daily)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Face Washing Frequency</label>
+                                <select class="field-input" id="face_washing_frequency" required>
+                                    <option value="1">Once a day</option>
+                                    <option value="2">Twice a day</option>
+                                    <option value="3+">More than twice a day</option>
+                                    <option value="rarely">Rarely</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Makeup Usage</label>
+                                <select class="field-input" id="makeup_usage" required>
+                                    <option value="never">Never</option>
+                                    <option value="occasionally">Occasionally</option>
+                                    <option value="daily_light">Daily (Light)</option>
+                                    <option value="daily_heavy">Daily (Heavy/Full Face)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Pollution Exposure (Living Area)</label>
+                                <select class="field-input" id="pollution_exposure" required>
+                                    <option value="low">Low (Rural / Clean air)</option>
+                                    <option value="medium">Medium (Suburban)</option>
+                                    <option value="high">High (Urban / Industrial)</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Occupation Type</label>
+                                <select class="field-input" id="occupation_type" required>
+                                    <option value="indoor">Indoor / Desk Job</option>
+                                    <option value="outdoor">Outdoor / Field Work</option>
+                                    <option value="mixed">Mixed (Indoor &amp; Outdoor)</option>
+                                    <option value="active">Highly Active (Fitness, manual labor)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary btn-prev">Previous</button>
+                            <button type="submit" class="btn-primary btn-with-spinner">
+                                <span class="btn-label">Continue to Allergies</span>
+                                <span class="btn-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 3: Allergy Profile -->
+                <div class="step-content d-none" id="step-3">
+                    <div class="step-heading">
+                        <span class="step-heading-eyebrow">Step 3 of 5</span>
+                        <h3>Medical &amp; Allergy History</h3>
+                        <p>Known sensitivities help us flag ingredients to avoid.</p>
+                    </div>
+                    <form id="form-step-3" novalidate>
+                        <div class="field-grid">
+                            <div class="field-group field-group-full">
+                                <label class="field-label">Do you have any known allergies?</label>
+                                <select class="field-input" id="has_known_allergy" required>
+                                    <option value="">Select option...</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div id="allergy_details_section" class="d-none">
+                            <div class="field-grid">
+                                <div class="field-group">
+                                    <label class="field-label">Type of Allergy</label>
+                                    <select class="field-input" id="allergy_type">
+                                        <option value="">Select option...</option>
+                                        <option value="food">Food Allergy</option>
+                                        <option value="environmental">Environmental (Dust, Pollen, etc.)</option>
+                                        <option value="skincare">Skincare Ingredients</option>
+                                        <option value="medication">Medication</option>
+                                        <option value="multiple">Multiple Types</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Reactive Skincare Ingredients</label>
+                                    <input type="text" class="field-input" id="reactive_ingredients" placeholder="e.g. Fragrance, Retinol, Salicylic Acid">
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Symptoms After Reaction</label>
+                                    <select class="field-input" id="reaction_symptoms">
+                                        <option value="">Select option...</option>
+                                        <option value="redness">Redness / Erythema</option>
+                                        <option value="itching">Itching / Pruritus</option>
+                                        <option value="swelling">Swelling / Edema</option>
+                                        <option value="hives">Hives / Urticaria</option>
+                                        <option value="breakouts">Breakouts / Acne</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Reaction Severity</label>
+                                    <select class="field-input" id="reaction_severity">
+                                        <option value="">Select option...</option>
+                                        <option value="mild">Mild (Fades quickly)</option>
+                                        <option value="moderate">Moderate (Requires basic care)</option>
+                                        <option value="severe">Severe (Requires medical attention)</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Visited a Dermatologist?</label>
+                                    <select class="field-input" id="visited_dermatologist">
+                                        <option value="">Select option...</option>
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Currently Taking Allergy Medication?</label>
+                                    <select class="field-input" id="taking_medication">
+                                        <option value="">Select option...</option>
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                </div>
+                                <div class="field-group field-group-full">
+                                    <label class="field-label">Additional Allergy Information</label>
+                                    <textarea class="field-input" id="additional_allergy_info" rows="3" placeholder="Provide any additional clinical details..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary btn-prev">Previous</button>
+                            <button type="submit" class="btn-primary btn-with-spinner">
+                                <span class="btn-label">Continue to Diet and Habits</span>
+                                <span class="btn-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 4: Diet and Habits Profile -->
+                <div class="step-content d-none" id="step-4">
+                    <div class="step-heading">
+                        <span class="step-heading-eyebrow">Step 4 of 5</span>
+                        <h3>Diet and Habits</h3>
+                        <p>Nutrition and consumption patterns affecting skin health.</p>
+                    </div>
+                    <form id="form-step-4" novalidate>
+                        <div class="field-grid">
+                            <div class="field-group">
+                                <label class="field-label">Daily Hydration Volume (Liters)</label>
+                                <input type="number" step="0.1" class="field-input" id="water_intake" required>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Fruits and Vegetable Intake</label>
+                                <input list="fruits_veggies_options" class="field-input" id="fruits_veggies_intake" placeholder="Select or type your own info" required>
+                                <datalist id="fruits_veggies_options">
+                                    <option value="None">
+                                    <option value="1-2 servings daily">
+                                    <option value="3-4 servings daily">
+                                    <option value="5+ servings daily">
+                                </datalist>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Fast Food Frequency</label>
+                                <input list="fast_food_options" class="field-input" id="fast_food_freq" placeholder="Select or type your own info" required>
+                                <datalist id="fast_food_options">
+                                    <option value="Rarely/Never">
+                                    <option value="1-2 times a week">
+                                    <option value="3-4 times a week">
+                                    <option value="Almost daily">
+                                </datalist>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Sugary Food Consumption</label>
+                                <input list="sugar_options" class="field-input" id="sugar_consumption" placeholder="Select or type your own info" required>
+                                <datalist id="sugar_options">
+                                    <option value="Low (Minimal)">
+                                    <option value="Moderate">
+                                    <option value="High">
+                                </datalist>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Alcohol / Smoking</label>
+                                <input list="alcohol_smoking_options" class="field-input" id="alcohol_smoking" placeholder="Select or type your own info" required>
+                                <datalist id="alcohol_smoking_options">
+                                    <option value="Neither">
+                                    <option value="Occasional drinking">
+                                    <option value="Regular drinking">
+                                    <option value="Smoking only">
+                                    <option value="Both alcohol and smoking">
+                                </datalist>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Tea / Coffee</label>
+                                <input list="tea_coffee_options" class="field-input" id="tea_coffee_intake" placeholder="Select or type your own info" required>
+                                <datalist id="tea_coffee_options">
+                                    <option value="None">
+                                    <option value="1-2 cups a day">
+                                    <option value="3-4 cups a day">
+                                    <option value="5+ cups a day">
+                                </datalist>
+                            </div>
+                        </div>
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary btn-prev">Previous</button>
+                            <button type="submit" class="btn-primary btn-with-spinner">
+                                <span class="btn-label">Continue to Imaging</span>
+                                <span class="btn-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Step 5: Images Upload -->
+                <div class="step-content d-none" id="step-5">
+                    <div class="step-heading">
+                        <span class="step-heading-eyebrow">Step 5 of 5</span>
+                        <h3>Clinical Photography</h3>
+                        <p>Upload at least 3 clear photographs (Frontal, Left Lateral, Right Lateral) for AI-assisted dermatological analysis.</p>
+                    </div>
+                    <form id="form-step-5" novalidate>
+                        <div class="upload-zone" id="drop-zone">
+                            <input class="visually-hidden-input" type="file" id="images" multiple accept="image/*" required>
+                            <div class="upload-zone-icon">
+                                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            </div>
+                            <label for="images" class="btn-secondary">Select Images</label>
+                            <p class="upload-zone-hint" id="file-count">Drag &amp; drop, or click to browse. Minimum of 3 images required.</p>
+                        </div>
+                        <div class="image-preview-grid" id="image-preview-grid"></div>
+                        <div class="step-actions">
+                            <button type="button" class="btn-secondary btn-prev">Previous</button>
+                            <button type="submit" class="btn-success btn-with-spinner">
+                                <span class="btn-label">Submit Profile</span>
+                                <span class="btn-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Success Message + Report -->
+                <div class="step-content d-none" id="step-success">
+                    <div class="success-state">
+                        <div class="success-icon">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </div>
+                        <h2>Assessment Complete</h2>
+                        <p>Your clinical profile has been securely recorded and the AI diagnostics engine has analyzed your uploaded imaging.</p>
+                    </div>
+                    <div id="report-container"></div>
+                </div>
+
+            </section>
+        </div>
+
+    </main>
+
+    <!-- History Modal -->
+    <div class="modal fade" id="history-modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content history-modal-content">
+                <div class="history-modal-header">
+                    <div>
+                        <h3 id="history-modal-title">Assessment History</h3>
+                        <p class="history-modal-subtitle" id="history-modal-subtitle">Every AI skin analysis you've run, most recent first. Click a run to open its full report.</p>
+                    </div>
+                    <button type="button" class="btn-icon-ghost" data-bs-dismiss="modal" aria-label="Close">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+                <div class="history-modal-body">
+                    <div id="history-list" class="history-list"></div>
+                    <div id="history-empty" class="history-empty d-none">
+                        <p>No assessment runs yet. Complete the clinical intake and upload photos to generate your first AI report.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery & Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/report-render.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

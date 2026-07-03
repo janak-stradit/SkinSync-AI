@@ -1,0 +1,17 @@
+#create the form which collect the data 
+-step 
+    - 
+
+# fill data should be store into db with id
+# user should upload image min 3 
+# start anaylsis of image using opencv
+
+
+python 
+   - flask
+     - opencv
+   - boostrap jquery 
+   - postgress 
+
+
+
