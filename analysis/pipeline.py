@@ -58,7 +58,7 @@ def align_face(image_bgr, face_box):
     eyes = EYE_CASCADE.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=8, minSize=(20, 20))
 
     if len(eyes) < 2:
-        return image_bgr, face_box
+        return image_bgr, face_box, False
 
     eyes = sorted(eyes, key=lambda e: e[0])[:2]
     (ex1, ey1, ew1, eh1), (ex2, ey2, ew2, eh2) = eyes
@@ -76,7 +76,7 @@ def align_face(image_bgr, face_box):
     )
 
     realigned_box = detect_face(rotated)
-    return rotated, (realigned_box if realigned_box is not None else face_box)
+    return rotated, (realigned_box if realigned_box is not None else face_box), True
 
 
 def crop_and_resize_face(image_bgr, face_box, margin=0.25, size=FACE_SIZE):
@@ -274,14 +274,15 @@ def analyze_image(image_path):
     if face_box is None:
         return {'status': 'no_face_detected'}
 
-    aligned, face_box = align_face(image, face_box)
+    aligned, face_box, was_aligned = align_face(image, face_box)
     face_crop = crop_and_resize_face(aligned, face_box)
     face_pre = preprocess_face(face_crop)
     skin_mask = segment_skin(face_pre)
 
     skin_px = int(np.count_nonzero(skin_mask))
+    skin_coverage = round(skin_px / (FACE_SIZE * FACE_SIZE), 4)
     if skin_px < (FACE_SIZE * FACE_SIZE * 0.05):
-        return {'status': 'insufficient_skin_area'}
+        return {'status': 'insufficient_skin_area', 'aligned': was_aligned, 'skin_coverage': skin_coverage}
 
     raw = {
         'pigmentation': detect_pigmentation(face_pre, skin_mask),
@@ -299,13 +300,96 @@ def analyze_image(image_path):
         'pores': round(_scale(raw['pores']['density'], 0.0, 40.0), 1),
     }
 
-    return {'status': 'ok', 'raw': raw, 'scores': scores}
+    return {
+        'status': 'ok',
+        'raw': raw,
+        'scores': scores,
+        'aligned': was_aligned,
+        'skin_coverage': skin_coverage,
+    }
+
+
+STAGE_LABELS = {
+    'face_detection': 'Face Detection',
+    'alignment': 'Face Alignment',
+    'segmentation': 'Skin Segmentation',
+    'preprocessing': 'Preprocessing',
+    'feature_extraction': 'Feature Extraction',
+    'scoring': 'Scoring',
+}
+
+
+def _average_raw_metrics(ok_results, metric_keys):
+    raw_avg = {}
+    for m in metric_keys:
+        dicts = [r['raw'][m] for r in ok_results]
+        avg = {}
+        for k in dicts[0].keys():
+            vals = [d[k] for d in dicts if isinstance(d.get(k), (int, float))]
+            if vals:
+                avg[k] = round(float(np.mean(vals)), 4)
+        raw_avg[m] = avg
+    return raw_avg
+
+
+def _build_stage_details(results, ok_results, metric_keys):
+    total = len(results)
+    status_counts = {}
+    for r in results:
+        status_counts[r['status']] = status_counts.get(r['status'], 0) + 1
+
+    unreadable = status_counts.get('unreadable_image', 0)
+    no_face = status_counts.get('no_face_detected', 0)
+    insufficient_skin = status_counts.get('insufficient_skin_area', 0)
+    images_with_face = total - unreadable - no_face
+
+    coverage_results = [r for r in results if 'skin_coverage' in r]
+    avg_coverage_pct = (
+        round(float(np.mean([r['skin_coverage'] for r in coverage_results])) * 100, 1)
+        if coverage_results else None
+    )
+    aligned_count = sum(1 for r in coverage_results if r.get('aligned'))
+
+    return {
+        'face_detection': {
+            'label': STAGE_LABELS['face_detection'],
+            'images_total': total,
+            'images_with_face': images_with_face,
+            'images_failed': unreadable + no_face,
+        },
+        'alignment': {
+            'label': STAGE_LABELS['alignment'],
+            'images_processed': len(coverage_results),
+            'images_aligned': aligned_count,
+        },
+        'segmentation': {
+            'label': STAGE_LABELS['segmentation'],
+            'avg_skin_coverage_pct': avg_coverage_pct,
+            'images_insufficient_skin': insufficient_skin,
+        },
+        'preprocessing': {
+            'label': STAGE_LABELS['preprocessing'],
+            'images_processed': len(ok_results),
+            'techniques': ['CLAHE illumination normalization', 'Bilateral denoising'],
+        },
+        'feature_extraction': {
+            'label': STAGE_LABELS['feature_extraction'],
+            'images_analyzed': len(ok_results),
+            'raw': _average_raw_metrics(ok_results, metric_keys) if ok_results else {},
+        },
+        'scoring': {
+            'label': STAGE_LABELS['scoring'],
+            'images_used': len(ok_results),
+        },
+    }
 
 
 def generate_report(image_paths):
     """Run the full pipeline over a batch of images and aggregate into one report."""
     results = [analyze_image(p) for p in image_paths]
     ok_results = [r for r in results if r['status'] == 'ok']
+    metric_keys = list(METRIC_LABELS.keys())
+    stage_details = _build_stage_details(results, ok_results, metric_keys)
 
     if not ok_results:
         return {
@@ -314,13 +398,13 @@ def generate_report(image_paths):
             'images_skipped': len(results),
             'overall_skin_health_score': None,
             'metrics': None,
+            'stage_details': stage_details,
             'message': (
                 'No usable face could be detected in the uploaded images. '
                 'Please upload clear, well-lit, front-facing photos.'
             ),
         }
 
-    metric_keys = list(METRIC_LABELS.keys())
     avg_scores = {
         m: round(float(np.mean([r['scores'][m] for r in ok_results])), 1)
         for m in metric_keys
@@ -342,5 +426,6 @@ def generate_report(image_paths):
         'images_skipped': len(results) - len(ok_results),
         'overall_skin_health_score': overall_health_score,
         'metrics': metrics,
+        'stage_details': stage_details,
         'message': None,
     }

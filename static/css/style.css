@@ -1092,6 +1092,97 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid var(--color-border);
 }
 
+.report-steps {
+    max-width: 560px;
+    margin: 0 auto;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.report-steps-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 1rem;
+    text-align: left;
+}
+
+.report-steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+}
+
+.report-step-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.report-step-marker {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--color-primary-light);
+    color: var(--color-primary-dark);
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.report-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.report-step-name {
+    font-weight: 600;
+    font-size: 0.86rem;
+    color: var(--color-text);
+}
+
+.report-step-detail {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+}
+
+.report-ai-section {
+    max-width: 560px;
+    margin: 0 auto;
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    text-align: left;
+}
+
+.report-ai-btn {
+    width: 100%;
+}
+
+.report-ai-error {
+    color: var(--color-danger);
+    font-size: 0.84rem;
+    margin-top: 0.6rem;
+}
+
+.report-ai-result {
+    margin-top: 0.9rem;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    color: var(--color-text);
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+    white-space: normal;
+}
+
 /* ==========================================================================
    History Modal
    ========================================================================== */
@@ -1213,9 +1304,9 @@ h1, h2, h3, h4, h5, h6 {
    ========================================================================== */
 
 .report-page-main {
-    max-width: 720px;
+    max-width: 1440px;
     margin: 0 auto;
-    padding: 2.5rem 1.5rem 4rem;
+    padding: 2.5rem 2rem 4rem;
 }
 
 .report-page-back {
@@ -1271,4 +1362,93 @@ h1, h2, h3, h4, h5, h6 {
     border-top-color: var(--color-primary);
     animation: spin 0.7s linear infinite;
     margin: 0 auto 1rem;
+}
+
+/* ==========================================================================
+   Standalone Report Page — full-width grid (report + clinical intake)
+   ========================================================================== */
+
+.report-page-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 400px;
+    gap: 2rem;
+    align-items: start;
+}
+
+.report-intake-slot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.report-intake-panel {
+    text-align: left;
+}
+
+.report-intake-heading {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--color-text);
+    margin-bottom: 1.5rem;
+}
+
+.intake-section + .intake-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+}
+
+.intake-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+
+.intake-fields-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.intake-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.intake-field-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--color-text-subtle);
+}
+
+.intake-field-value {
+    font-size: 0.87rem;
+    font-weight: 500;
+    color: var(--color-text);
+    word-break: break-word;
+}
+
+.intake-field-empty {
+    color: var(--color-text-subtle);
+    font-style: italic;
+    font-weight: 400;
+}
+
+.intake-empty-msg {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+@media (max-width: 1100px) {
+    .report-page-grid {
+        grid-template-columns: 1fr;
+    }
 }

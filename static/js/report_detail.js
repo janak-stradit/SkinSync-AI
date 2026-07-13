@@ -9,12 +9,30 @@ $(document).ready(function() {
             ? `<a href="/" class="btn-primary">Go to Login</a>`
             : '';
         $container.html(`
-            <div class="report-page-state">
-                <h2>${title}</h2>
-                <p>${message}</p>
-                ${loginLink}
+            <div class="report-page-card">
+                <div class="report-page-state">
+                    <h2>${title}</h2>
+                    <p>${message}</p>
+                    ${loginLink}
+                </div>
             </div>
         `);
+    }
+
+    function loadIntake() {
+        $.ajax({
+            url: `${API_URL}/profile/intake`,
+            type: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            success: function(intake) {
+                $container.find('.report-intake-slot').replaceWith(buildIntakeHtml(intake));
+            },
+            error: function() {
+                $container.find('.report-intake-slot').replaceWith(
+                    '<p class="intake-empty-msg">Clinical intake details could not be loaded.</p>'
+                );
+            }
+        });
     }
 
     if (!token) {
@@ -28,7 +46,8 @@ $(document).ready(function() {
         headers: { 'Authorization': `Bearer ${token}` },
         success: function(report) {
             document.title = `Report · ${formatDate(report.created_at)} - SkinSync AI`;
-            $container.html(buildReportCardHtml(report));
+            $container.html(buildReportPageHtml(report));
+            loadIntake();
         },
         error: function(err) {
             if (err.status === 401) {
