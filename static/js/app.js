@@ -162,32 +162,30 @@ $(document).ready(function() {
 
     // Step 1
     submitStep('#form-step-1', '/profile/skin', function() {
+        function checkboxValues(name) {
+            return $(`input[name="${name}"]:checked`).map(function(){ return this.value; }).get();
+        }
+
         return {
             skin_type: $('#skin_type').val(),
-            sensitivity_level: $('#sensitivity_level').val(),
             skin_tone: $('#skin_tone').val(),
-            skin_concerns: $('#skin_concerns').val(),
-            acne_level: $('#acne_level').val(),
-            pigmentation_level: $('#pigmentation_level').val(),
-            pore_size: $('#pore_size').val(),
-            under_eye_issue: $('#under_eye_issue').val(),
-            lip_condition: $('#lip_condition').val(),
-            seasonal_skin_changes: $('#seasonal_skin_changes').val()
+            skin_concerns: checkboxValues('skin_concerns[]'),
+            under_eye_issue: checkboxValues('under_eye_issue[]'),
+            lip_condition: checkboxValues('lip_condition[]'),
+            sensitivity_level: $('#sensitivity_level').val(),
+            additional_concern: $('#additional_concern').val()
         };
     }, 2);
 
     // Step 2
     submitStep('#form-step-2', '/profile/lifestyle', function() {
+        function checkboxValues(name) { return $(`input[name="${name}"]:checked`).map(function(){ return this.value; }).get(); }
         return {
             sleep_hours: parseInt($('#sleep_hours').val()),
             stress_level: $('#stress_level').val(),
-            exercise_frequency: $('#exercise_frequency').val(),
-            screen_time: $('#screen_time').val(),
-            sunscreen_usage: $('#sunscreen_usage').val(),
-            face_washing_frequency: $('#face_washing_frequency').val(),
-            makeup_usage: $('#makeup_usage').val(),
-            pollution_exposure: $('#pollution_exposure').val(),
-            occupation_type: $('#occupation_type').val()
+            alcohol_smoking: $('#alcohol_smoking').val(),
+            medical_conditions: checkboxValues('medical_conditions[]'),
+            medical_conditions_other: $('#medical_conditions_other').val()
         };
     }, 3);
 
@@ -201,15 +199,20 @@ $(document).ready(function() {
     });
 
     submitStep('#form-step-3', '/profile/allergy', function() {
+        function checkboxValues(name) { return $(`input[name="${name}"]:checked`).map(function(){ return this.value; }).get(); }
         return {
             has_known_allergy: $('#has_known_allergy').val(),
-            allergy_type: $('#allergy_type').val(),
+            allergy_type: checkboxValues('allergy_type[]'),
+            allergy_type_other: $('#allergy_type_other').val(),
             reactive_ingredients: $('#reactive_ingredients').val(),
             reaction_symptoms: $('#reaction_symptoms').val(),
             reaction_severity: $('#reaction_severity').val(),
             visited_dermatologist: $('#visited_dermatologist').val(),
             taking_medication: $('#taking_medication').val(),
-            additional_allergy_info: $('#additional_allergy_info').val()
+            additional_allergy_info: $('#additional_allergy_info').val(),
+            skin_medication: $('#skin_medication').val(),
+            recent_treatment: $('#recent_treatment').val(),
+            recent_treatment_other: $('#recent_treatment_other').val()
         };
     }, 4);
 
@@ -221,7 +224,9 @@ $(document).ready(function() {
             fruits_veggies_intake: $('#fruits_veggies_intake').val(),
             fast_food_freq: $('#fast_food_freq').val(),
             alcohol_smoking: $('#alcohol_smoking').val(),
-            tea_coffee_intake: $('#tea_coffee_intake').val()
+            tea_coffee_intake: $('#tea_coffee_intake').val(),
+            supplements: $('#supplements').val(),
+            supplements_text: $('#supplements_text').val()
         };
     }, 5);
 

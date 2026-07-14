@@ -197,104 +197,88 @@
                 <div class="step-content active" id="step-1">
                     <div class="step-heading">
                         <span class="step-heading-eyebrow">Step 1 of 5</span>
-                        <h3>Clinical Skin Profile</h3>
-                        <p>Tell us about your baseline skin characteristics.</p>
+                        <h3>Skin Profile</h3>
+                        <p>Share your skin story so we can personalize recommendations.</p>
                     </div>
                     <form id="form-step-1" novalidate>
                         <div class="field-grid">
                             <div class="field-group">
                                 <label class="field-label">Skin Type</label>
                                 <select class="field-input" id="skin_type" required>
-                                    <option value="">Select option...</option>
-                                    <option value="oily">Oily</option>
+                                    <option value="">Choose...</option>
+                                    <option value="normal">Normal</option>
                                     <option value="dry">Dry</option>
+                                    <option value="oily">Oily</option>
                                     <option value="combination">Combination</option>
-                                    <option value="normal">Normal</option>
                                     <option value="sensitive">Sensitive</option>
+                                    <option value="not_sure">Not Sure</option>
                                 </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Sensitivity Level</label>
-                                <select class="field-input" id="sensitivity_level" required>
-                                    <option value="low">Low</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="high">High</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Skin Tone (Fitzpatrick Scale Reference)</label>
+                                <label class="field-label">Skin Tone</label>
                                 <select class="field-input" id="skin_tone" required>
-                                    <option value="">Select option...</option>
-                                    <option value="fair">Type I - II (Fair / Light)</option>
-                                    <option value="medium">Type III (Medium)</option>
-                                    <option value="olive">Type IV (Olive)</option>
-                                    <option value="brown">Type V (Brown)</option>
-                                    <option value="dark">Type VI (Dark)</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Primary Skin Concerns</label>
-                                <select class="field-input" id="skin_concerns" required>
-                                    <option value="">Select primary concern...</option>
-                                    <option value="acne">Acne Vulgaris / Breakouts</option>
-                                    <option value="blackheads">Comedones (Blackheads)</option>
-                                    <option value="pigmentation">Hyperpigmentation</option>
-                                    <option value="wrinkles">Fine Lines / Wrinkles</option>
-                                    <option value="dryness">Severe Dryness / Eczema</option>
-                                    <option value="none">No major concerns</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Acne Severity</label>
-                                <select class="field-input" id="acne_level" required>
-                                    <option value="none">None</option>
-                                    <option value="mild">Mild</option>
-                                    <option value="moderate">Moderate</option>
-                                    <option value="severe">Severe / Cystic</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Pigmentation Level</label>
-                                <select class="field-input" id="pigmentation_level" required>
-                                    <option value="none">None</option>
-                                    <option value="mild">Mild</option>
-                                    <option value="moderate">Moderate</option>
-                                    <option value="severe">Severe</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Pore Size</label>
-                                <select class="field-input" id="pore_size" required>
-                                    <option value="small">Small (Invisible)</option>
+                                    <option value="">Choose...</option>
+                                    <option value="very_fair">Very Fair</option>
+                                    <option value="fair">Fair</option>
                                     <option value="medium">Medium</option>
-                                    <option value="large">Large (Prominent)</option>
+                                    <option value="olive">Olive</option>
+                                    <option value="brown">Brown</option>
+                                    <option value="dark">Dark</option>
                                 </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Under Eye Area Status</label>
-                                <select class="field-input" id="under_eye_issue" required>
-                                    <option value="none">Normal</option>
-                                    <option value="dark_circles">Periorbital Hyperpigmentation (Dark Circles)</option>
-                                    <option value="puffiness">Periorbital Edema (Puffiness)</option>
-                                    <option value="wrinkles">Periorbital Rhytides (Wrinkles)</option>
+                                <label class="field-label">Skin Concerns</label>
+                                <div class="checkbox-grid">
+                                    <label><input type="checkbox" name="skin_concerns[]" value="acne"> Acne</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="pimples"> Pimples</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="dark_spots"> Dark Spots</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="pigmentation"> Pigmentation</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="wrinkles"> Wrinkles</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="fine_lines"> Fine Lines</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="dryness"> Dryness</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="oiliness"> Oiliness</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="redness"> Redness</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="blackheads"> Blackheads</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="whiteheads"> Whiteheads</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="large_pores"> Large Pores</label>
+                                    <label><input type="checkbox" name="skin_concerns[]" value="dull_skin"> Dull Skin</label>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Under eyes</label>
+                                <div class="checkbox-grid">
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="dark_circles"> dark circles</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="puffiness"> puffiness</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="eye_bags"> eye bags</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="fine_lines"> fine lines</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="wrinkles"> wrinkles</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="dryness"> dryness</label>
+                                    <label><input type="checkbox" name="under_eye_issue[]" value="none"> none</label>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Lip condition</label>
+                                <div class="checkbox-grid">
+                                    <label><input type="checkbox" name="lip_condition[]" value="dry_lips"> dry lips</label>
+                                    <label><input type="checkbox" name="lip_condition[]" value="chapped_lips"> chapped lips</label>
+                                    <label><input type="checkbox" name="lip_condition[]" value="dark_lips"> dark lips</label>
+                                    <label><input type="checkbox" name="lip_condition[]" value="cracked_lips"> cracked lips</label>
+                                    <label><input type="checkbox" name="lip_condition[]" value="none"> none</label>
+                                </div>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Skin Sensitivity</label>
+                                <select class="field-input" id="sensitivity_level" required>
+                                    <option value="">Choose...</option>
+                                    <option value="low">Low</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="high">High</option>
+                                    <option value="not_sure">Not Sure</option>
                                 </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Lip Condition</label>
-                                <select class="field-input" id="lip_condition" required>
-                                    <option value="normal">Normal</option>
-                                    <option value="dry">Dry / Chapped</option>
-                                    <option value="pigmented">Pigmented</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Seasonal Reactivity</label>
-                                <select class="field-input" id="seasonal_skin_changes" required>
-                                    <option value="none">Stable year-round</option>
-                                    <option value="dry_winter">Increased dryness in Winter</option>
-                                    <option value="oily_summer">Increased sebum production in Summer</option>
-                                    <option value="both">Reactive to both extremes</option>
-                                </select>
+                                <label class="field-label">Additional Concern</label>
+                                <textarea class="field-input" id="additional_concern" rows="3" placeholder="Any other concerns (optional)"></textarea>
                             </div>
                         </div>
                         <div class="step-actions step-actions-end">
@@ -310,83 +294,43 @@
                 <div class="step-content d-none" id="step-2">
                     <div class="step-heading">
                         <span class="step-heading-eyebrow">Step 2 of 5</span>
-                        <h3>Lifestyle Assessment</h3>
-                        <p>Daily habits that influence your skin's condition.</p>
+                        <h3>Lifestyle & Routine</h3>
+                        <p>Daily habits shaping your skin.</p>
                     </div>
                     <form id="form-step-2" novalidate>
                         <div class="field-grid">
                             <div class="field-group">
-                                <label class="field-label">Average Sleep Duration (Hours)</label>
-                                <input type="number" class="field-input" id="sleep_hours" min="1" max="24" required>
+                                <label class="field-label">Sleep Duration</label>
+                                <input type="number" class="field-input" id="sleep_hours" min="0" max="24" required>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Reported Stress Level</label>
+                                <label class="field-label">Stress Level</label>
                                 <select class="field-input" id="stress_level" required>
+                                    <option value="">Choose...</option>
                                     <option value="low">Low</option>
-                                    <option value="medium">Moderate</option>
+                                    <option value="moderate">Moderate</option>
                                     <option value="high">High</option>
                                 </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Exercise Frequency</label>
-                                <select class="field-input" id="exercise_frequency" required>
-                                    <option value="none">None</option>
-                                    <option value="1-2">1-2 days/week</option>
-                                    <option value="3-4">3-4 days/week</option>
-                                    <option value="5+">5+ days/week</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Average Screen Time</label>
-                                <select class="field-input" id="screen_time" required>
-                                    <option value="low">Under 2 hours</option>
-                                    <option value="medium">2 - 6 hours</option>
-                                    <option value="high">Over 6 hours</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Sunscreen Usage</label>
-                                <select class="field-input" id="sunscreen_usage" required>
-                                    <option value="never">Never</option>
-                                    <option value="rarely">Rarely (Only when sunny/outdoors)</option>
-                                    <option value="sometimes">Sometimes</option>
-                                    <option value="always">Always (Daily)</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Face Washing Frequency</label>
-                                <select class="field-input" id="face_washing_frequency" required>
-                                    <option value="1">Once a day</option>
-                                    <option value="2">Twice a day</option>
-                                    <option value="3+">More than twice a day</option>
-                                    <option value="rarely">Rarely</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Makeup Usage</label>
-                                <select class="field-input" id="makeup_usage" required>
+                                <label class="field-label">Alcohol / Smoking</label>
+                                <select class="field-input" id="alcohol_smoking" required>
+                                    <option value="">Choose...</option>
                                     <option value="never">Never</option>
                                     <option value="occasionally">Occasionally</option>
-                                    <option value="daily_light">Daily (Light)</option>
-                                    <option value="daily_heavy">Daily (Heavy/Full Face)</option>
+                                    <option value="regular">Regular</option>
                                 </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Pollution Exposure (Living Area)</label>
-                                <select class="field-input" id="pollution_exposure" required>
-                                    <option value="low">Low (Rural / Clean air)</option>
-                                    <option value="medium">Medium (Suburban)</option>
-                                    <option value="high">High (Urban / Industrial)</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">Occupation Type</label>
-                                <select class="field-input" id="occupation_type" required>
-                                    <option value="indoor">Indoor / Desk Job</option>
-                                    <option value="outdoor">Outdoor / Field Work</option>
-                                    <option value="mixed">Mixed (Indoor &amp; Outdoor)</option>
-                                    <option value="active">Highly Active (Fitness, manual labor)</option>
-                                </select>
+                                <label class="field-label">Medical Condition</label>
+                                <div class="checkbox-grid">
+                                    <label><input type="checkbox" name="medical_conditions[]" value="diabetes"> Diabetes</label>
+                                    <label><input type="checkbox" name="medical_conditions[]" value="pcos"> PCOS</label>
+                                    <label><input type="checkbox" name="medical_conditions[]" value="thyroid"> Thyroid</label>
+                                    <label><input type="checkbox" name="medical_conditions[]" value="hormonal_issues"> Hormonal Issues</label>
+                                    <label><input type="checkbox" name="medical_conditions[]" value="other"> Other</label>
+                                </div>
+                                <input type="text" class="field-input mt-2" id="medical_conditions_other" placeholder="If Other, please specify">
                             </div>
                         </div>
                         <div class="step-actions">
@@ -403,15 +347,15 @@
                 <div class="step-content d-none" id="step-3">
                     <div class="step-heading">
                         <span class="step-heading-eyebrow">Step 3 of 5</span>
-                        <h3>Medical &amp; Allergy History</h3>
-                        <p>Known sensitivities help us flag ingredients to avoid.</p>
+                        <h3>Allergy & Skin History</h3>
+                        <p>Tell us about sensitivities and reactions.</p>
                     </div>
                     <form id="form-step-3" novalidate>
                         <div class="field-grid">
                             <div class="field-group field-group-full">
-                                <label class="field-label">Do you have any known allergies?</label>
+                                <label class="field-label">Known allergies</label>
                                 <select class="field-input" id="has_known_allergy" required>
-                                    <option value="">Select option...</option>
+                                    <option value="">Choose...</option>
                                     <option value="yes">Yes</option>
                                     <option value="no">No</option>
                                 </select>
@@ -421,24 +365,27 @@
                         <div id="allergy_details_section" class="d-none">
                             <div class="field-grid">
                                 <div class="field-group">
-                                    <label class="field-label">Type of Allergy</label>
-                                    <select class="field-input" id="allergy_type">
-                                        <option value="">Select option...</option>
-                                        <option value="food">Food Allergy</option>
-                                        <option value="environmental">Environmental (Dust, Pollen, etc.)</option>
-                                        <option value="skincare">Skincare Ingredients</option>
-                                        <option value="medication">Medication</option>
-                                        <option value="multiple">Multiple Types</option>
-                                    </select>
+                                    <label class="field-label">Allergy types</label>
+                                        <div class="checkbox-grid">
+                                            <label><input type="checkbox" name="allergy_type[]" value="cosmetics"> Cosmetics</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="fragrance"> Fragrance</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="sunscreen"> Sunscreen</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="medication"> Medication</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="food"> Food</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="dust"> Dust</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="pollen"> Pollen</label>
+                                            <label><input type="checkbox" name="allergy_type[]" value="other"> Other</label>
+                                        </div>
+                                        <input type="text" class="field-input mt-2" id="allergy_type_other" placeholder="If Other, please specify">
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">Reactive Skincare Ingredients</label>
+                                    <label class="field-label">Ingredients you react to</label>
                                     <input type="text" class="field-input" id="reactive_ingredients" placeholder="e.g. Fragrance, Retinol, Salicylic Acid">
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">Symptoms After Reaction</label>
+                                    <label class="field-label">Reaction symptoms</label>
                                     <select class="field-input" id="reaction_symptoms">
-                                        <option value="">Select option...</option>
+                                        <option value="">Choose...</option>
                                         <option value="redness">Redness / Erythema</option>
                                         <option value="itching">Itching / Pruritus</option>
                                         <option value="swelling">Swelling / Edema</option>
@@ -447,32 +394,52 @@
                                     </select>
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">Reaction Severity</label>
+                                    <label class="field-label">Severity</label>
                                     <select class="field-input" id="reaction_severity">
-                                        <option value="">Select option...</option>
+                                        <option value="">Choose...</option>
                                         <option value="mild">Mild (Fades quickly)</option>
                                         <option value="moderate">Moderate (Requires basic care)</option>
                                         <option value="severe">Severe (Requires medical attention)</option>
                                     </select>
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">Visited a Dermatologist?</label>
+                                    <label class="field-label">Dermatologist visit</label>
                                     <select class="field-input" id="visited_dermatologist">
-                                        <option value="">Select option...</option>
+                                        <option value="">Choose...</option>
                                         <option value="yes">Yes</option>
                                         <option value="no">No</option>
                                     </select>
                                 </div>
                                 <div class="field-group">
-                                    <label class="field-label">Currently Taking Allergy Medication?</label>
+                                    <label class="field-label">Allergy medications</label>
                                     <select class="field-input" id="taking_medication">
-                                        <option value="">Select option...</option>
+                                        <option value="">Choose...</option>
                                         <option value="yes">Yes</option>
                                         <option value="no">No</option>
                                     </select>
                                 </div>
+                                <div class="field-group">
+                                    <label class="field-label">Skin medication</label>
+                                    <select class="field-input" id="skin_medication">
+                                        <option value="">Choose...</option>
+                                        <option value="yes">Yes</option>
+                                        <option value="no">No</option>
+                                    </select>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label">Recent treatments</label>
+                                    <select class="field-input" id="recent_treatment">
+                                        <option value="">Choose...</option>
+                                        <option value="none">None</option>
+                                        <option value="chemical_peel">Chemical Peel</option>
+                                        <option value="laser">Laser</option>
+                                        <option value="microneedling">Microneedling</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <input type="text" class="field-input mt-2" id="recent_treatment_other" placeholder="If Other, please specify">
+                                </div>
                                 <div class="field-group field-group-full">
-                                    <label class="field-label">Additional Allergy Information</label>
+                                    <label class="field-label">Additional allergy details</label>
                                     <textarea class="field-input" id="additional_allergy_info" rows="3" placeholder="Provide any additional clinical details..."></textarea>
                                 </div>
                             </div>
@@ -491,64 +458,71 @@
                 <div class="step-content d-none" id="step-4">
                     <div class="step-heading">
                         <span class="step-heading-eyebrow">Step 4 of 5</span>
-                        <h3>Diet and Habits</h3>
-                        <p>Nutrition and consumption patterns affecting skin health.</p>
+                        <h3>Diet & Wellness</h3>
+                        <p>Tell us what fuels your skin.</p>
                     </div>
                     <form id="form-step-4" novalidate>
                         <div class="field-grid">
                             <div class="field-group">
-                                <label class="field-label">Daily Hydration Volume (Liters)</label>
+                                <label class="field-label">Daily water intake</label>
                                 <input type="number" step="0.1" class="field-input" id="water_intake" required>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Fruits and Vegetable Intake</label>
-                                <input list="fruits_veggies_options" class="field-input" id="fruits_veggies_intake" placeholder="Select or type your own info" required>
-                                <datalist id="fruits_veggies_options">
-                                    <option value="None">
-                                    <option value="1-2 servings daily">
-                                    <option value="3-4 servings daily">
-                                    <option value="5+ servings daily">
-                                </datalist>
+                                <label class="field-label">Fruits & vegetables</label>
+                                <select class="field-input" id="fruits_veggies_intake" required>
+                                    <option value="">Choose...</option>
+                                    <option value="rarely">Rarely</option>
+                                    <option value="sometimes">Sometimes</option>
+                                    <option value="often">Often</option>
+                                    <option value="daily">Daily</option>
+                                </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Fast Food Frequency</label>
-                                <input list="fast_food_options" class="field-input" id="fast_food_freq" placeholder="Select or type your own info" required>
-                                <datalist id="fast_food_options">
-                                    <option value="Rarely/Never">
-                                    <option value="1-2 times a week">
-                                    <option value="3-4 times a week">
-                                    <option value="Almost daily">
-                                </datalist>
+                                <label class="field-label">Junk food frequency</label>
+                                <select class="field-input" id="fast_food_freq" required>
+                                    <option value="">Choose...</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="3-5_week">3–5 times/week</option>
+                                    <option value="1-2_week">1–2 times/week</option>
+                                    <option value="rarely">Rarely</option>
+                                </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Sugary Food Consumption</label>
-                                <input list="sugar_options" class="field-input" id="sugar_consumption" placeholder="Select or type your own info" required>
-                                <datalist id="sugar_options">
-                                    <option value="Low (Minimal)">
-                                    <option value="Moderate">
-                                    <option value="High">
-                                </datalist>
+                                <label class="field-label">Sugar intake</label>
+                                <select class="field-input" id="sugar_consumption" required>
+                                    <option value="">Choose...</option>
+                                    <option value="low">Low</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="high">High</option>
+                                </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Alcohol / Smoking</label>
-                                <input list="alcohol_smoking_options" class="field-input" id="alcohol_smoking" placeholder="Select or type your own info" required>
-                                <datalist id="alcohol_smoking_options">
-                                    <option value="Neither">
-                                    <option value="Occasional drinking">
-                                    <option value="Regular drinking">
-                                    <option value="Smoking only">
-                                    <option value="Both alcohol and smoking">
-                                </datalist>
+                                <label class="field-label">Alcohol and smoking</label>
+                                <select class="field-input" id="alcohol_smoking" required>
+                                    <option value="">Choose...</option>
+                                    <option value="never">Never</option>
+                                    <option value="occasionally">Occasionally</option>
+                                    <option value="regular">Regular</option>
+                                </select>
                             </div>
                             <div class="field-group">
-                                <label class="field-label">Tea / Coffee</label>
-                                <input list="tea_coffee_options" class="field-input" id="tea_coffee_intake" placeholder="Select or type your own info" required>
-                                <datalist id="tea_coffee_options">
-                                    <option value="None">
-                                    <option value="1-2 cups a day">
-                                    <option value="3-4 cups a day">
-                                    <option value="5+ cups a day">
-                                </datalist>
+                                <label class="field-label">Tea & coffee intake</label>
+                                <select class="field-input" id="tea_coffee_intake" required>
+                                    <option value="">Choose...</option>
+                                    <option value="none">None</option>
+                                    <option value="1-2">1-2 cups/day</option>
+                                    <option value="3-4">3-4 cups/day</option>
+                                    <option value="5+">5+ cups/day</option>
+                                </select>
+                            </div>
+                            <div class="field-group">
+                                <label class="field-label">Supplements</label>
+                                <select class="field-input" id="supplements" required>
+                                    <option value="">Choose...</option>
+                                    <option value="no">No</option>
+                                    <option value="yes">Yes</option>
+                                </select>
+                                <input type="text" class="field-input mt-2" id="supplements_text" placeholder="If Yes, list supplements">
                             </div>
                         </div>
                         <div class="step-actions">

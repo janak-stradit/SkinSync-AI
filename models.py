@@ -37,10 +37,11 @@ class SkinProfile(db.Model):
     sensitivity_level = db.Column(db.String(50))
     acne_level = db.Column(db.String(50))
     pigmentation_level = db.Column(db.String(50))
-    skin_concerns = db.Column(db.String(255))
+    skin_concerns = db.Column(db.JSON)
     pore_size = db.Column(db.String(50))
-    under_eye_issue = db.Column(db.String(50))
-    lip_condition = db.Column(db.String(50))
+    under_eye_issue = db.Column(db.JSON)
+    lip_condition = db.Column(db.JSON)
+    additional_concern = db.Column(db.Text)
     seasonal_skin_changes = db.Column(db.String(50))
 
 class LifestyleProfile(db.Model):
@@ -58,19 +59,24 @@ class LifestyleProfile(db.Model):
     makeup_usage = db.Column(db.String(50))
     pollution_exposure = db.Column(db.String(50))
     occupation_type = db.Column(db.String(50))
+    medical_conditions = db.Column(db.JSON)
+    medical_conditions_other = db.Column(db.Text)
 
 class AllergyProfile(db.Model):
     __tablename__ = 'allergy_profiles'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     has_known_allergy = db.Column(db.String(50))
-    allergy_type = db.Column(db.String(100))
+    allergy_type = db.Column(db.JSON)
     reactive_ingredients = db.Column(db.String(200))
     reaction_symptoms = db.Column(db.String(100))
     reaction_severity = db.Column(db.String(50))
     visited_dermatologist = db.Column(db.String(50))
     taking_medication = db.Column(db.String(50))
     additional_allergy_info = db.Column(db.Text)
+    skin_medication = db.Column(db.String(50))
+    recent_treatment = db.Column(db.String(100))
+    recent_treatment_other = db.Column(db.Text)
 
 class DietProfile(db.Model):
     __tablename__ = 'diet_profiles'
@@ -83,6 +89,10 @@ class DietProfile(db.Model):
     fast_food_freq = db.Column(db.String(100))
     alcohol_smoking = db.Column(db.String(100))
     tea_coffee_intake = db.Column(db.String(100))
+    supplements = db.Column(db.String(10))
+    supplements_text = db.Column(db.Text)
+    diet_preferences = db.Column(db.JSON)
+    diet_additional_notes = db.Column(db.Text)
 
 class Image(db.Model):
     __tablename__ = 'images'

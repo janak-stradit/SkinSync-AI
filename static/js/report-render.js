@@ -16,6 +16,38 @@ function severityForHealthScore(score) {
     return 'severe';
 }
 
+function humanizeFieldKey(key) {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, function(letter) { return letter.toUpperCase(); });
+}
+
+function renderProfileBlock(title, data) {
+    if (!data) return '';
+    const rows = Object.entries(data)
+        .filter(function([key, value]) { return value !== null && value !== undefined && value !== ''; })
+        .map(function([key, value]) {
+            if (Array.isArray(value)) {
+                value = value.join(', ');
+            }
+            return `
+                <div class="report-intake-row">
+                    <span class="report-intake-key">${humanizeFieldKey(key)}</span>
+                    <span class="report-intake-value">${value}</span>
+                </div>
+            `;
+        }).join('');
+
+    if (!rows) {
+        return '';
+    }
+
+    return `
+        <div class="report-intake-block">
+            <h4>${title}</h4>
+            ${rows}
+        </div>
+    `;
+}
+
 function buildReportCardHtml(report) {
     if (report.status !== 'ok') {
         return `
@@ -53,6 +85,27 @@ function buildReportCardHtml(report) {
           }).join('')}</div>`
         : '';
 
+    const intakeSummary = report.intake_summary || {};
+    const intakeHtml = intakeSummary.skin_profile || intakeSummary.lifestyle_profile || intakeSummary.allergy_profile || intakeSummary.diet_profile
+        ? `
+            <div class="report-intake-section">
+                <div class="report-section-heading">Clinical Intake Summary</div>
+                <div class="report-intake-grid">
+                    ${renderProfileBlock('Skin Profile', intakeSummary.skin_profile)}
+                    ${renderProfileBlock('Lifestyle Profile', intakeSummary.lifestyle_profile)}
+                    ${renderProfileBlock('Allergy Profile', intakeSummary.allergy_profile)}
+                    ${renderProfileBlock('Diet Profile', intakeSummary.diet_profile)}
+                </div>
+            </div>
+        `
+        : '';
+
+    const actionHtml = report.id ? `
+        <div class="report-action-row">
+            <a href="/reports/${report.id}" class="btn-success btn-ai-action">Continue with AI Clinical Report</a>
+        </div>
+    ` : '';
+
     return `
         <div class="report-card">
             <div class="report-score-row">
@@ -67,6 +120,8 @@ function buildReportCardHtml(report) {
             </div>
             <div class="report-metrics-grid">${metricsHtml}</div>
             ${imagesHtml}
+            ${intakeHtml}
+            ${actionHtml}
         </div>
     `;
 }
