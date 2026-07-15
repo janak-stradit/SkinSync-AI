@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, redirect, render_template, url_for
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
@@ -28,6 +28,10 @@ def create_app():
     # Serve the frontend
     @app.route('/')
     def index():
+        return redirect(url_for('login_page'))
+
+    @app.route('/login')
+    def login_page():
         return render_template('index.html')
 
     @app.route('/reports/<int:report_id>')

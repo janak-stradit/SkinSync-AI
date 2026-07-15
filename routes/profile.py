@@ -1,10 +1,13 @@
 import os
 import uuid
+import hashlib
+import anthropic
 from flask import Blueprint, request, jsonify, current_app, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, SkinProfile, LifestyleProfile, AllergyProfile, DietProfile, Image, AnalysisResult
 from werkzeug.utils import secure_filename
 from analysis.pipeline import generate_report
+from analysis.ai_analysis import generate_ai_analysis
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -32,6 +35,8 @@ def _serialize_result(result, include_images=True):
         'images_skipped': result.images_skipped,
         'overall_skin_health_score': result.overall_skin_health_score,
         'metrics': result.metrics,
+        'stage_details': result.stage_details,
+        'ai_analysis': result.ai_analysis,
         'message': result.message,
         'created_at': result.created_at.isoformat(),
         'intake_summary': {
@@ -44,6 +49,45 @@ def _serialize_result(result, include_images=True):
     if include_images:
         data['images'] = _image_urls(result.image_filenames)
     return data
+
+def _profile_to_dict(profile, fields):
+    if not profile:
+        return None
+    return {f: getattr(profile, f) for f in fields}
+
+
+@profile_bp.route('/intake', methods=['GET'])
+@jwt_required()
+def get_intake():
+    user_id = int(get_jwt_identity())
+    skin = SkinProfile.query.filter_by(user_id=user_id).first()
+    lifestyle = LifestyleProfile.query.filter_by(user_id=user_id).first()
+    allergy = AllergyProfile.query.filter_by(user_id=user_id).first()
+    diet = DietProfile.query.filter_by(user_id=user_id).first()
+
+    return jsonify({
+        'skin_profile': _profile_to_dict(skin, [
+            'skin_type', 'skin_tone', 'sensitivity_level', 'acne_level',
+            'pigmentation_level', 'skin_concerns', 'pore_size',
+            'under_eye_issue', 'lip_condition', 'seasonal_skin_changes',
+        ]),
+        'lifestyle_profile': _profile_to_dict(lifestyle, [
+            'sleep_hours', 'stress_level', 'exercise_frequency', 'screen_time',
+            'sunscreen_usage', 'face_washing_frequency', 'makeup_usage',
+            'pollution_exposure', 'occupation_type',
+        ]),
+        'allergy_profile': _profile_to_dict(allergy, [
+            'has_known_allergy', 'allergy_type', 'reactive_ingredients',
+            'reaction_symptoms', 'reaction_severity', 'visited_dermatologist',
+            'taking_medication', 'additional_allergy_info',
+        ]),
+        'diet_profile': _profile_to_dict(diet, [
+            'diet_type', 'water_intake_liters', 'sugar_consumption',
+            'fruits_veggies_intake', 'fast_food_freq', 'alcohol_smoking',
+            'tea_coffee_intake',
+        ]),
+    }), 200
+
 
 @profile_bp.route('/skin', methods=['POST'])
 @jwt_required()
@@ -181,6 +225,19 @@ def upload_images():
     files = request.files.getlist('images')
     if len(files) < 3:
         return jsonify({"msg": "Minimum 3 images required"}), 400
+
+    # UUID filenames make repeated uploads look unique on disk. Compare the
+    # actual bytes so one photo cannot be submitted multiple times as a
+    # supposedly three-view assessment.
+    content_hashes = set()
+    for file in files:
+        digest = hashlib.sha256(file.stream.read()).hexdigest()
+        file.stream.seek(0)
+        if digest in content_hashes:
+            return jsonify({
+                "msg": "Duplicate images detected. Please upload at least 3 different face photos."
+            }), 400
+        content_hashes.add(digest)
         
     uploaded_files = []
     saved_paths = []
@@ -202,7 +259,13 @@ def upload_images():
 
     db.session.commit()
     try:
-        report = generate_report(saved_paths)
+        intake_context = {
+            'skin_profile': _serialize_profile(SkinProfile.query.filter_by(user_id=user_id).first()),
+            'lifestyle_profile': _serialize_profile(LifestyleProfile.query.filter_by(user_id=user_id).first()),
+            'allergy_profile': _serialize_profile(AllergyProfile.query.filter_by(user_id=user_id).first()),
+            'diet_profile': _serialize_profile(DietProfile.query.filter_by(user_id=user_id).first()),
+        }
+        report = generate_report(saved_paths, intake_context=intake_context)
 
         result = AnalysisResult(
             user_id=user_id,
@@ -211,6 +274,7 @@ def upload_images():
             images_skipped=report.get('images_skipped', 0),
             overall_skin_health_score=report.get('overall_skin_health_score'),
             metrics=report.get('metrics'),
+            stage_details=report.get('stage_details'),
             message=report.get('message'),
             image_filenames=uploaded_files,
         )
@@ -250,3 +314,32 @@ def get_report(report_id):
     if not result:
         return jsonify({"msg": "Report not found"}), 404
     return jsonify(_serialize_result(result)), 200
+
+
+@profile_bp.route('/reports/<int:report_id>/ai-analysis', methods=['POST'])
+@jwt_required()
+def get_ai_analysis(report_id):
+    user_id = int(get_jwt_identity())
+    result = AnalysisResult.query.filter_by(id=report_id, user_id=user_id).first()
+    if not result:
+        return jsonify({"msg": "Report not found"}), 404
+    if result.status != 'ok':
+        return jsonify({"msg": "This report has no analysis to summarize"}), 400
+
+    if result.ai_analysis:
+        return jsonify({"ai_analysis": result.ai_analysis}), 200
+
+    if not current_app.config.get('ANTHROPIC_API_KEY'):
+        return jsonify({"msg": "AI analysis is not configured on this server"}), 503
+
+    try:
+        ai_analysis = generate_ai_analysis(_serialize_result(result, include_images=False))
+    except anthropic.APIStatusError as e:
+        return jsonify({"msg": f"AI analysis failed: {e.message}"}), 502
+    except anthropic.APIConnectionError:
+        return jsonify({"msg": "AI analysis failed: could not reach the AI service"}), 502
+
+    result.ai_analysis = ai_analysis
+    db.session.commit()
+
+    return jsonify({"ai_analysis": ai_analysis}), 200

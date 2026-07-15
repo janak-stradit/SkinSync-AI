@@ -32,9 +32,8 @@ $(document).ready(function() {
         $('#header-status').text('Clinical Assessment In Progress');
     }
 
-    if (localStorage.getItem('access_token')) {
-        enterWizard();
-    }
+    // Always begin with a fresh login when the application is opened.
+    localStorage.removeItem('access_token');
 
     $('#logout-btn').click(function() {
         localStorage.removeItem('access_token');
@@ -85,6 +84,7 @@ $(document).ready(function() {
             data: JSON.stringify(data),
             success: function(res) {
                 localStorage.setItem('access_token', res.access_token);
+                window.history.replaceState({}, '', '/');
                 enterWizard();
             },
             error: function(err) {
@@ -92,6 +92,14 @@ $(document).ready(function() {
             },
             complete: function() { setButtonLoading($btn, false); }
         });
+    });
+
+    $('.password-toggle').on('click', function() {
+        const $input = $($(this).attr('data-target'));
+        const showingPassword = $input.attr('type') === 'text';
+        $input.attr('type', showingPassword ? 'password' : 'text');
+        $(this).attr('aria-label', showingPassword ? 'Show password' : 'Hide password');
+        $(this).toggleClass('is-visible', !showingPassword);
     });
 
     // ----- Stepper Logic -----
@@ -130,6 +138,7 @@ $(document).ready(function() {
 
     $('.btn-prev').click(function() {
         if (currentStep > 1) {
+            if (currentStep === 5) stopCamera();
             currentStep--;
             showStep(currentStep);
         }
@@ -234,6 +243,72 @@ $(document).ready(function() {
     const $dropZone = $('#drop-zone');
     const $fileInput = $('#images');
     const $previewGrid = $('#image-preview-grid');
+    const $cameraPanel = $('#camera-panel');
+    const cameraVideo = document.getElementById('camera-video');
+    const cameraCanvas = document.getElementById('camera-canvas');
+    let cameraStream = null;
+
+    function stopCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(function(track) { track.stop(); });
+            cameraStream = null;
+        }
+        if (cameraVideo) cameraVideo.srcObject = null;
+        $cameraPanel.addClass('d-none');
+        $('#open-camera-btn').prop('disabled', false);
+    }
+
+    $('#open-camera-btn').on('click', async function() {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            showToast('Camera access is not supported by this browser.', 'error');
+            return;
+        }
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 960 } },
+                audio: false
+            });
+            cameraVideo.srcObject = cameraStream;
+            $cameraPanel.removeClass('d-none').addClass('fade-in');
+            $(this).prop('disabled', true);
+            $cameraPanel[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (error) {
+            showToast(error.name === 'NotAllowedError'
+                ? 'Camera permission was denied. Please allow camera access and try again.'
+                : 'Could not open the camera. You can still select images from your device.', 'error');
+            stopCamera();
+        }
+    });
+
+    $('#close-camera-btn').on('click', stopCamera);
+
+    $('#capture-photo-btn').on('click', function() {
+        if (!cameraStream || !cameraVideo.videoWidth) {
+            showToast('The camera is still starting. Please try again.', 'info');
+            return;
+        }
+        cameraCanvas.width = cameraVideo.videoWidth;
+        cameraCanvas.height = cameraVideo.videoHeight;
+        const context = cameraCanvas.getContext('2d');
+        context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+        cameraCanvas.toBlob(function(blob) {
+            if (!blob) {
+                showToast('Could not capture the photo. Please try again.', 'error');
+                return;
+            }
+            const file = new File([blob], `camera-${Date.now()}.jpg`, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+            });
+            addFiles([file]);
+            const views = ['front view', 'left-side view', 'right-side view'];
+            const nextView = views[Math.min(selectedFiles.length, 2)];
+            $('#camera-angle-hint').text(selectedFiles.length >= 3
+                ? 'Minimum complete. Add more photos or submit your profile.'
+                : `Next: capture the ${nextView}.`);
+            showToast('Photo captured successfully.', 'success');
+        }, 'image/jpeg', 0.92);
+    });
 
     function syncFileInput() {
         const dataTransfer = new DataTransfer();
@@ -265,7 +340,12 @@ $(document).ready(function() {
 
     function addFiles(fileList) {
         Array.from(fileList).forEach(function(file) {
-            if (file.type.startsWith('image/')) {
+            const alreadySelected = selectedFiles.some(function(selected) {
+                return selected.name === file.name
+                    && selected.size === file.size
+                    && selected.lastModified === file.lastModified;
+            });
+            if (file.type.startsWith('image/') && !alreadySelected) {
                 selectedFiles.push(file);
             }
         });
@@ -316,6 +396,7 @@ $(document).ready(function() {
         });
 
         setButtonLoading($btn, true);
+        stopCamera();
         $.ajax({
             url: `${API_URL}/profile/upload_images`,
             type: 'POST',
@@ -326,15 +407,20 @@ $(document).ready(function() {
             processData: false,
             contentType: false,
             success: function(res) {
+                const reportStatus = res.report?.status;
                 $('.step-content').addClass('d-none').removeClass('active');
                 $('#step-success').removeClass('d-none').addClass('active fade-in');
                 $('#form-progress').css('width', `100%`);
                 $('#progress-percent').text(100);
                 $('.step-list-item').removeClass('active').addClass('completed');
-                $('#header-status').text('Assessment Complete');
+                $('#header-status').text(reportStatus === 'ok' ? 'Assessment Complete' : 'Assessment Incomplete');
                 if (res.report) {
                     $('#report-container').html(buildReportCardHtml(res.report));
                 }
+                // Do not retain one assessment's photos for a later submission/user.
+                selectedFiles = [];
+                syncFileInput();
+                renderPreviews();
             },
             error: function(err) {
                 showToast(err.responseJSON?.msg || 'Error uploading images', 'error');

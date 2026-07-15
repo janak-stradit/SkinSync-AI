@@ -53,25 +53,58 @@
 
     <main class="app-main">
 
+        <div class="hero-slogan-strip">
+            <span class="hero-slogan-icon">✦</span>
+            <span class="hero-slogan-text">Healthy skin starts with smart care • Personalized skincare, powered by intelligence</span>
+        </div>
+
         <!-- Auth Screen -->
         <div id="auth-container" class="auth-shell fade-in">
             <div class="auth-visual">
+                <div class="skin-symbol skin-symbol-face" aria-hidden="true">
+                    <svg viewBox="0 0 120 140" fill="none"><path d="M35 22c17-12 50-9 61 11 11 20 5 70-13 89-13 13-34 14-48 0-18-18-24-72 0-100Z" stroke="currentColor" stroke-width="3"/><path d="M53 52c4-3 9-3 13 0M58 57c-3 13-3 23 4 27M48 98c8 6 19 6 27 0" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M26 39c16-6 25-17 29-29M29 54c-8 6-10 17-6 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+                </div>
+                <div class="skin-symbol skin-symbol-drop" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none"><path d="M24 5S10 20 10 30a14 14 0 0 0 28 0C38 20 24 5 24 5Z" stroke="currentColor" stroke-width="2.5"/><path d="M17 31c1 5 4 7 8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                </div>
                 <div class="auth-visual-content">
                     <span class="eyebrow">AI-Assisted Dermatology</span>
-                    <h1>Personalized skin insight, backed by data.</h1>
-                    <p>Complete a short clinical intake and upload photos to receive an AI-assisted dermatological assessment tailored to your skin profile, lifestyle and history.</p>
+                    <h1>Discover your skin’s true potential with intelligent care.</h1>
+                    <p>Complete a short clinical intake and upload photos to receive a premium, AI-powered skincare assessment tailored to your skin profile, lifestyle and history.</p>
+                    <div class="auth-hero-badges">
+                        <span class="hero-pill">Personalized Skin Scan</span>
+                        <span class="hero-pill hero-pill-soft">Luxury Care Experience</span>
+                    </div>
                     <ul class="auth-highlights">
                         <li><span class="check-dot"></span> Structured 5-step clinical intake</li>
-                        <li><span class="check-dot"></span> Secure, encrypted photo analysis</li>
+                        <li><span class="check-dot"></span> Secure, high-precision image analysis</li>
                         <li><span class="check-dot"></span> Evidence-based skin profiling</li>
                     </ul>
+                    <div class="auth-metrics-grid">
+                        <div class="hero-metric-card">
+                            <strong>98%</strong>
+                            <span>Tailored insights</span>
+                        </div>
+                        <div class="hero-metric-card">
+                            <strong>24/7</strong>
+                            <span>AI wellness support</span>
+                        </div>
+                        <div class="hero-metric-card">
+                            <strong>3+</strong>
+                            <span>Selfie views analyzed</span>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="auth-panel">
                 <div class="auth-panel-inner">
+                    <div class="auth-welcome-symbol" aria-hidden="true">
+                        <svg viewBox="0 0 48 48" fill="none"><path d="M24 4S11 17 11 28a13 13 0 0 0 26 0C37 17 24 4 24 4Z" stroke="currentColor" stroke-width="2.2"/><path d="M28 18c6-5 12-3 15-1-1 7-6 12-14 10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/><path d="M29 27c3-5 7-8 12-10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+                    </div>
                     <div class="mb-4">
-                        <h2 class="auth-title">Welcome</h2>
-                        <p class="auth-subtitle">Sign in to continue your assessment, or create a new patient account.</p>
+                        <span class="auth-kicker">Your personalized skin space</span>
+                        <h2 class="auth-title">Welcome to healthier skin</h2>
+                        <p class="auth-subtitle">Sign in to continue your private skin assessment, or create a new account.</p>
                     </div>
 
                     <div class="segmented-tabs" id="authTab" role="tablist">
@@ -84,16 +117,24 @@
                             <form id="login-form" novalidate>
                                 <div class="field-group">
                                     <label class="field-label">Username</label>
-                                    <input type="text" class="field-input" id="login-username" autocomplete="username" required>
+                                    <div class="auth-input-wrap">
+                                        <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4 21c.8-5 3.4-7 8-7s7.2 2 8 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        <input type="text" class="field-input" id="login-username" autocomplete="username" placeholder="Enter your username" required>
+                                    </div>
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label">Password</label>
-                                    <input type="password" class="field-input" id="login-password" autocomplete="current-password" required>
+                                    <div class="auth-input-wrap">
+                                        <svg class="auth-input-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="3" stroke="currentColor" stroke-width="1.8"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                                        <input type="password" class="field-input" id="login-password" autocomplete="current-password" placeholder="Enter your password" required>
+                                        <button type="button" class="password-toggle" data-target="#login-password" aria-label="Show password"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg></button>
+                                    </div>
                                 </div>
                                 <button type="submit" class="btn-primary w-100 btn-with-spinner">
-                                    <span class="btn-label">Access Portal</span>
+                                    <span class="btn-label">Begin my skin journey</span>
                                     <span class="btn-spinner"></span>
                                 </button>
+                                <div class="auth-trust-note"><span>✦</span> Your skin profile stays secure and private</div>
                             </form>
                         </div>
                         <div class="tab-pane fade" id="register-pane" role="tabpanel">
@@ -199,6 +240,7 @@
                         <span class="step-heading-eyebrow">Step 1 of 5</span>
                         <h3>Skin Profile</h3>
                         <p>Share your skin story so we can personalize recommendations.</p>
+                        <div class="step-slogan">Your skin story deserves thoughtful care.</div>
                     </div>
                     <form id="form-step-1" novalidate>
                         <div class="field-grid">
@@ -296,6 +338,7 @@
                         <span class="step-heading-eyebrow">Step 2 of 5</span>
                         <h3>Lifestyle & Routine</h3>
                         <p>Daily habits shaping your skin.</p>
+                        <div class="step-slogan">Habits shape glow — every routine matters.</div>
                     </div>
                     <form id="form-step-2" novalidate>
                         <div class="field-grid">
@@ -349,6 +392,7 @@
                         <span class="step-heading-eyebrow">Step 3 of 5</span>
                         <h3>Allergy & Skin History</h3>
                         <p>Tell us about sensitivities and reactions.</p>
+                        <div class="step-slogan">Gentle care begins with knowing your triggers.</div>
                     </div>
                     <form id="form-step-3" novalidate>
                         <div class="field-grid">
@@ -460,6 +504,7 @@
                         <span class="step-heading-eyebrow">Step 4 of 5</span>
                         <h3>Diet & Wellness</h3>
                         <p>Tell us what fuels your skin.</p>
+                        <div class="step-slogan">What you nourish yourself with reflects on your glow.</div>
                     </div>
                     <form id="form-step-4" novalidate>
                         <div class="field-grid">
@@ -541,6 +586,7 @@
                         <span class="step-heading-eyebrow">Step 5 of 5</span>
                         <h3>Clinical Photography</h3>
                         <p>Upload at least 3 clear photographs (Frontal, Left Lateral, Right Lateral) for AI-assisted dermatological analysis.</p>
+                        <div class="step-slogan">Your glow, captured clearly for smarter skincare insight.</div>
                     </div>
                     <form id="form-step-5" novalidate>
                         <div class="upload-zone" id="drop-zone">
@@ -549,7 +595,28 @@
                                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
                             </div>
                             <label for="images" class="btn-secondary">Select Images</label>
+                            <button type="button" class="btn-camera" id="open-camera-btn">
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8h3l1.5-2h7L17 8h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="14" r="3.5" stroke="currentColor" stroke-width="1.8"/></svg>
+                                Open Camera
+                            </button>
                             <p class="upload-zone-hint" id="file-count">Drag &amp; drop, or click to browse. Minimum of 3 images required.</p>
+                        </div>
+                        <div class="camera-panel d-none" id="camera-panel">
+                            <div class="camera-panel-head">
+                                <div><strong>Live camera</strong><span>Center your face in good, even lighting.</span></div>
+                                <button type="button" class="camera-close" id="close-camera-btn" aria-label="Close camera">&times;</button>
+                            </div>
+                            <div class="camera-viewfinder">
+                                <video id="camera-video" autoplay playsinline muted></video>
+                                <div class="camera-face-guide" aria-hidden="true"></div>
+                            </div>
+                            <canvas id="camera-canvas" class="d-none"></canvas>
+                            <div class="camera-actions">
+                                <span id="camera-angle-hint">Capture front, left, and right views.</span>
+                                <button type="button" class="btn-camera-capture" id="capture-photo-btn">
+                                    <span class="capture-ring"></span> Capture Photo
+                                </button>
+                            </div>
                         </div>
                         <div class="image-preview-grid" id="image-preview-grid"></div>
                         <div class="step-actions">

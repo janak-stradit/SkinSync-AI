@@ -11,3 +11,4 @@ class Config:
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'super-secret-jwt-key'
     JWT_ACCESS_TOKEN_EXPIRES = False
     UPLOAD_FOLDER = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'static/uploads')
+    ANTHROPIC_API_KEY = os.environ.get('ANTHROPIC_API_KEY')

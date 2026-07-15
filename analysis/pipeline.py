@@ -58,7 +58,7 @@ def align_face(image_bgr, face_box):
     eyes = EYE_CASCADE.detectMultiScale(roi_gray, scaleFactor=1.1, minNeighbors=8, minSize=(20, 20))
 
     if len(eyes) < 2:
-        return image_bgr, face_box
+        return image_bgr, face_box, False
 
     eyes = sorted(eyes, key=lambda e: e[0])[:2]
     (ex1, ey1, ew1, eh1), (ex2, ey2, ew2, eh2) = eyes
@@ -76,7 +76,7 @@ def align_face(image_bgr, face_box):
     )
 
     realigned_box = detect_face(rotated)
-    return rotated, (realigned_box if realigned_box is not None else face_box)
+    return rotated, (realigned_box if realigned_box is not None else face_box), True
 
 
 def crop_and_resize_face(image_bgr, face_box, margin=0.25, size=FACE_SIZE):
@@ -256,6 +256,96 @@ def _severity(score):
     return 'severe'
 
 
+def _normalize_profile_context(intake_context):
+    if not intake_context:
+        return {}
+
+    skin = intake_context.get('skin_profile') or {}
+    lifestyle = intake_context.get('lifestyle_profile') or {}
+    diet = intake_context.get('diet_profile') or {}
+
+    def _coerce_list(value):
+        if isinstance(value, list):
+            return [str(v).strip().lower() for v in value if str(v).strip()]
+        if isinstance(value, str):
+            return [part.strip().lower() for part in value.split(',') if part.strip()]
+        return []
+
+    concerns = _coerce_list(skin.get('skin_concerns'))
+    sensitivity = str(skin.get('sensitivity_level') or '').lower()
+    acne_level = str(skin.get('acne_level') or '').lower()
+    pigmentation_level = str(skin.get('pigmentation_level') or '').lower()
+    sunscreen_usage = str(lifestyle.get('sunscreen_usage') or '').lower()
+    stress_level = str(lifestyle.get('stress_level') or '').lower()
+    screen_time = str(lifestyle.get('screen_time') or '').lower()
+    pollution_exposure = str(lifestyle.get('pollution_exposure') or '').lower()
+    occupation_type = str(lifestyle.get('occupation_type') or '').lower()
+    makeup_usage = str(lifestyle.get('makeup_usage') or '').lower()
+    diet_type = str(diet.get('diet_type') or '').lower()
+
+    return {
+        'concerns': concerns,
+        'sensitivity': sensitivity,
+        'acne_level': acne_level,
+        'pigmentation_level': pigmentation_level,
+        'sunscreen_usage': sunscreen_usage,
+        'stress_level': stress_level,
+        'screen_time': screen_time,
+        'pollution_exposure': pollution_exposure,
+        'occupation_type': occupation_type,
+        'makeup_usage': makeup_usage,
+        'diet_type': diet_type,
+    }
+
+
+def _apply_profile_context(base_scores, intake_context):
+    context = _normalize_profile_context(intake_context)
+    if not context:
+        return base_scores
+
+    adjusted = dict(base_scores)
+    concerns = set(context['concerns'])
+
+    if 'acne' in concerns or context['acne_level'] in {'mild', 'moderate', 'severe'}:
+        adjusted['acne'] += 6.0
+    if 'pigmentation' in concerns or context['pigmentation_level'] in {'mild', 'moderate', 'severe'}:
+        adjusted['pigmentation'] += 6.0
+    if context['sensitivity'] in {'high', 'sensitive'}:
+        adjusted['redness'] += 4.0
+        adjusted['acne'] += 2.0
+    if context['stress_level'] in {'high'}:
+        adjusted['redness'] += 2.0
+        adjusted['wrinkles'] += 3.0
+    if context['screen_time'] in {'high'}:
+        adjusted['wrinkles'] += 2.0
+        adjusted['redness'] += 1.0
+    if context['sunscreen_usage'] in {'never', 'rarely'}:
+        adjusted['pigmentation'] += 2.0
+        adjusted['acne'] += 2.0
+    if context['pollution_exposure'] in {'high'}:
+        adjusted['redness'] += 2.0
+        adjusted['acne'] += 2.0
+    if context['occupation_type'] in {'outdoor', 'mixed'}:
+        adjusted['redness'] += 1.5
+        adjusted['pigmentation'] += 1.0
+    if context['makeup_usage'] in {'daily_heavy', 'daily_light'}:
+        adjusted['pores'] += 2.0
+        adjusted['acne'] += 1.0
+    if context['diet_type'] in {'non-veg', 'veg', 'vegan'}:
+        adjusted['pores'] += 0.5
+
+    return {k: round(float(np.clip(v, 0.0, 100.0)), 1) for k, v in adjusted.items()}
+
+
+def _score_metric(raw_value, max_value, exponent=1.0):
+    if max_value <= 0:
+        return 0.0
+    normalized = float(np.clip(raw_value / max_value, 0.0, 1.0))
+    if exponent != 1.0:
+        normalized = float(np.power(normalized, exponent))
+    return round(float(np.clip(normalized * 100.0, 0.0, 100.0)), 1)
+
+
 # ---------------------------------------------------------------------------
 # Stage 6: Per-image analysis + report generation
 # ---------------------------------------------------------------------------
@@ -274,14 +364,15 @@ def analyze_image(image_path):
     if face_box is None:
         return {'status': 'no_face_detected'}
 
-    aligned, face_box = align_face(image, face_box)
+    aligned, face_box, was_aligned = align_face(image, face_box)
     face_crop = crop_and_resize_face(aligned, face_box)
     face_pre = preprocess_face(face_crop)
     skin_mask = segment_skin(face_pre)
 
     skin_px = int(np.count_nonzero(skin_mask))
+    skin_coverage = round(skin_px / (FACE_SIZE * FACE_SIZE), 4)
     if skin_px < (FACE_SIZE * FACE_SIZE * 0.05):
-        return {'status': 'insufficient_skin_area'}
+        return {'status': 'insufficient_skin_area', 'aligned': was_aligned, 'skin_coverage': skin_coverage}
 
     raw = {
         'pigmentation': detect_pigmentation(face_pre, skin_mask),
@@ -292,20 +383,103 @@ def analyze_image(image_path):
     }
 
     scores = {
-        'pigmentation': round(_scale(raw['pigmentation']['area_ratio'], 0.0, 0.12), 1),
-        'acne': round(_scale(raw['acne']['density'], 0.0, 25.0), 1),
-        'redness': round(_scale(raw['redness']['score'], 0.0, 32.0), 1),
-        'wrinkles': round(_scale(raw['wrinkles']['score'], 0.0, 0.25), 1),
-        'pores': round(_scale(raw['pores']['density'], 0.0, 40.0), 1),
+        'pigmentation': _score_metric(raw['pigmentation']['area_ratio'] + raw['pigmentation']['blob_count'] * 0.002, 0.12, exponent=1.15),
+        'acne': _score_metric(raw['acne']['density'] + raw['acne']['blob_count'] * 0.6, 25.0, exponent=1.08),
+        'redness': _score_metric(max(0.0, raw['redness']['score']) + max(0.0, raw['redness']['mean_a'] - 128.0) * 0.3, 32.0, exponent=1.05),
+        'wrinkles': _score_metric(raw['wrinkles']['score'], 0.25, exponent=1.2),
+        'pores': _score_metric(raw['pores']['density'] * 0.95, 40.0, exponent=1.1),
     }
 
-    return {'status': 'ok', 'raw': raw, 'scores': scores}
+    return {
+        'status': 'ok',
+        'raw': raw,
+        'scores': scores,
+        'aligned': was_aligned,
+        'skin_coverage': skin_coverage,
+    }
 
 
-def generate_report(image_paths):
+STAGE_LABELS = {
+    'face_detection': 'Face Detection',
+    'alignment': 'Face Alignment',
+    'segmentation': 'Skin Segmentation',
+    'preprocessing': 'Preprocessing',
+    'feature_extraction': 'Feature Extraction',
+    'scoring': 'Scoring',
+}
+
+
+def _average_raw_metrics(ok_results, metric_keys):
+    raw_avg = {}
+    for m in metric_keys:
+        dicts = [r['raw'][m] for r in ok_results]
+        avg = {}
+        for k in dicts[0].keys():
+            vals = [d[k] for d in dicts if isinstance(d.get(k), (int, float))]
+            if vals:
+                avg[k] = round(float(np.mean(vals)), 4)
+        raw_avg[m] = avg
+    return raw_avg
+
+
+def _build_stage_details(results, ok_results, metric_keys):
+    total = len(results)
+    status_counts = {}
+    for r in results:
+        status_counts[r['status']] = status_counts.get(r['status'], 0) + 1
+
+    unreadable = status_counts.get('unreadable_image', 0)
+    no_face = status_counts.get('no_face_detected', 0)
+    insufficient_skin = status_counts.get('insufficient_skin_area', 0)
+    images_with_face = total - unreadable - no_face
+
+    coverage_results = [r for r in results if 'skin_coverage' in r]
+    avg_coverage_pct = (
+        round(float(np.mean([r['skin_coverage'] for r in coverage_results])) * 100, 1)
+        if coverage_results else None
+    )
+    aligned_count = sum(1 for r in coverage_results if r.get('aligned'))
+
+    return {
+        'face_detection': {
+            'label': STAGE_LABELS['face_detection'],
+            'images_total': total,
+            'images_with_face': images_with_face,
+            'images_failed': unreadable + no_face,
+        },
+        'alignment': {
+            'label': STAGE_LABELS['alignment'],
+            'images_processed': len(coverage_results),
+            'images_aligned': aligned_count,
+        },
+        'segmentation': {
+            'label': STAGE_LABELS['segmentation'],
+            'avg_skin_coverage_pct': avg_coverage_pct,
+            'images_insufficient_skin': insufficient_skin,
+        },
+        'preprocessing': {
+            'label': STAGE_LABELS['preprocessing'],
+            'images_processed': len(ok_results),
+            'techniques': ['CLAHE illumination normalization', 'Bilateral denoising'],
+        },
+        'feature_extraction': {
+            'label': STAGE_LABELS['feature_extraction'],
+            'images_analyzed': len(ok_results),
+            'raw': _average_raw_metrics(ok_results, metric_keys) if ok_results else {},
+        },
+        'scoring': {
+            'label': STAGE_LABELS['scoring'],
+            'images_used': len(ok_results),
+        },
+    }
+
+
+def generate_report(image_paths, intake_context=None):
     """Run the full pipeline over a batch of images and aggregate into one report."""
     results = [analyze_image(p) for p in image_paths]
     ok_results = [r for r in results if r['status'] == 'ok']
+    metric_keys = list(METRIC_LABELS.keys())
+    stage_details = _build_stage_details(results, ok_results, metric_keys)
 
     if not ok_results:
         return {
@@ -314,24 +488,39 @@ def generate_report(image_paths):
             'images_skipped': len(results),
             'overall_skin_health_score': None,
             'metrics': None,
+            'stage_details': stage_details,
             'message': (
                 'No usable face could be detected in the uploaded images. '
                 'Please upload clear, well-lit, front-facing photos.'
             ),
         }
 
-    metric_keys = list(METRIC_LABELS.keys())
+    if len(ok_results) < 3:
+        return {
+            'status': 'failed',
+            'images_analyzed': len(ok_results),
+            'images_skipped': len(results) - len(ok_results),
+            'overall_skin_health_score': None,
+            'metrics': None,
+            'stage_details': stage_details,
+            'message': (
+                f'At least 3 usable face images are required for a reliable analysis. '
+                f'Only {len(ok_results)} usable image(s) were detected.'
+            ),
+        }
+
     avg_scores = {
         m: round(float(np.mean([r['scores'][m] for r in ok_results])), 1)
         for m in metric_keys
     }
-    overall_health_score = round(100 - float(np.mean(list(avg_scores.values()))), 1)
+    adjusted_scores = _apply_profile_context(avg_scores, intake_context)
+    overall_health_score = round(100 - float(np.mean(list(adjusted_scores.values()))), 1)
 
     metrics = {
         m: {
             'label': METRIC_LABELS[m],
-            'score': avg_scores[m],
-            'severity': _severity(avg_scores[m]),
+            'score': adjusted_scores[m],
+            'severity': _severity(adjusted_scores[m]),
         }
         for m in metric_keys
     }
@@ -342,5 +531,6 @@ def generate_report(image_paths):
         'images_skipped': len(results) - len(ok_results),
         'overall_skin_health_score': overall_health_score,
         'metrics': metrics,
+        'stage_details': stage_details,
         'message': None,
     }

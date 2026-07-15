@@ -110,6 +110,8 @@ class AnalysisResult(db.Model):
     images_skipped = db.Column(db.Integer, default=0)
     overall_skin_health_score = db.Column(db.Float)
     metrics = db.Column(db.JSON)
+    stage_details = db.Column(db.JSON)
+    ai_analysis = db.Column(db.Text)
     message = db.Column(db.Text)
     image_filenames = db.Column(db.JSON)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)

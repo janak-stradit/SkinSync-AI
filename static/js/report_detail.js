@@ -9,10 +9,12 @@ $(document).ready(function() {
             ? `<a href="/" class="btn-primary">Go to Login</a>`
             : '';
         $container.html(`
-            <div class="report-page-state">
-                <h2>${title}</h2>
-                <p>${message}</p>
-                ${loginLink}
+            <div class="report-page-card">
+                <div class="report-page-state">
+                    <h2>${title}</h2>
+                    <p>${message}</p>
+                    ${loginLink}
+                </div>
             </div>
         `);
     }
@@ -28,7 +30,7 @@ $(document).ready(function() {
         headers: { 'Authorization': `Bearer ${token}` },
         success: function(report) {
             document.title = `Report · ${formatDate(report.created_at)} - SkinSync AI`;
-            $container.html(buildReportCardHtml(report));
+            $container.html(buildReportPageHtml(report));
         },
         error: function(err) {
             if (err.status === 401) {
