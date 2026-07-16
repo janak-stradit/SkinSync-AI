@@ -8,10 +8,17 @@ Rule-based (Haar cascades + classic image processing), no external model
 downloads required beyond what ships with opencv-python.
 """
 
+import hashlib
+import logging
+from datetime import datetime, timezone
+
 import cv2
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
 FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+PROFILE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_profileface.xml')
 EYE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
 
 FACE_SIZE = 400
@@ -27,9 +34,11 @@ ZONES = {
 }
 
 METRIC_LABELS = {
-    'pigmentation': 'Pigmentation',
     'acne': 'Acne / Pimples',
+    'pimple': 'Pimple Activity',
+    'dark_spots': 'Dark Spots',
     'redness': 'Redness',
+    'dryness': 'Dryness',
     'wrinkles': 'Fine Lines & Wrinkles',
     'pores': 'Pore Visibility',
 }
@@ -46,6 +55,123 @@ def detect_face(image_bgr):
     if len(faces) == 0:
         return None
     return tuple(max(faces, key=lambda f: f[2] * f[3]))
+
+
+def detect_profile_face(image_bgr):
+    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    gray = cv2.equalizeHist(gray)
+    faces = PROFILE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6, minSize=(80, 80))
+    if len(faces) == 0:
+        return None
+    return tuple(max(faces, key=lambda f: f[2] * f[3]))
+
+
+def detect_face_with_view(image_bgr):
+    frontal = detect_face(image_bgr)
+    if frontal is not None:
+        return frontal, 'front'
+
+    profile = detect_profile_face(image_bgr)
+    if profile is not None:
+        return profile, 'profile_right'
+
+    flipped = cv2.flip(image_bgr, 1)
+    flipped_profile = detect_profile_face(flipped)
+    if flipped_profile is not None:
+        x, y, w, h = flipped_profile
+        original_x = image_bgr.shape[1] - (x + w)
+        # A profile detected on the flipped image becomes the opposite side
+        # in the original image.
+        return (original_x, y, w, h), 'profile_left'
+
+    return None, None
+
+
+def _count_face_candidates(image_bgr):
+    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    gray = cv2.equalizeHist(gray)
+    frontal = FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+    profile = PROFILE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+    flipped = cv2.flip(image_bgr, 1)
+    flipped_gray = cv2.cvtColor(flipped, cv2.COLOR_BGR2GRAY)
+    flipped_gray = cv2.equalizeHist(flipped_gray)
+    flipped_profile = PROFILE_CASCADE.detectMultiScale(flipped_gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+    return len(frontal) + len(profile) + len(flipped_profile)
+
+
+def _quality_checks(image_bgr):
+    h, w = image_bgr.shape[:2]
+    gray = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2GRAY)
+    blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    brightness = float(np.mean(gray))
+    saturation = float(np.mean(cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)[:, :, 1]))
+    resolution = h * w
+    face_candidates = _count_face_candidates(image_bgr)
+
+    if resolution < 320 * 320:
+        return False, 'The photo is a little too small. Please move closer or use a higher-resolution capture.', {
+            'blur_score': round(blur_score, 2),
+            'brightness': round(brightness, 2),
+            'saturation': round(saturation, 2),
+            'resolution': resolution,
+            'face_candidates': face_candidates,
+        }
+    if blur_score < 70.0:
+        return False, 'The photo looks blurry. Please hold the camera steady and try again.', {
+            'blur_score': round(blur_score, 2),
+            'brightness': round(brightness, 2),
+            'saturation': round(saturation, 2),
+            'resolution': resolution,
+            'face_candidates': face_candidates,
+        }
+    if brightness < 45.0:
+        return False, 'The photo is too dark. Please move to better lighting and try again.', {
+            'blur_score': round(blur_score, 2),
+            'brightness': round(brightness, 2),
+            'saturation': round(saturation, 2),
+            'resolution': resolution,
+            'face_candidates': face_candidates,
+        }
+    if brightness > 225.0:
+        return False, 'The photo is too bright. Please reduce glare or use softer lighting.', {
+            'blur_score': round(blur_score, 2),
+            'brightness': round(brightness, 2),
+            'saturation': round(saturation, 2),
+            'resolution': resolution,
+            'face_candidates': face_candidates,
+        }
+    if saturation > 120.0:
+        return False, 'The photo looks heavily filtered. Please upload a more natural image.', {
+            'blur_score': round(blur_score, 2),
+            'brightness': round(brightness, 2),
+            'saturation': round(saturation, 2),
+            'resolution': resolution,
+            'face_candidates': face_candidates,
+        }
+    return True, None, {
+        'blur_score': round(blur_score, 2),
+        'brightness': round(brightness, 2),
+        'saturation': round(saturation, 2),
+        'resolution': resolution,
+        'face_candidates': face_candidates,
+    }
+
+
+def _result_message(status, view_name=None, skin_coverage=None):
+    if status == 'unreadable_image':
+        return 'Image could not be read by OpenCV.'
+    if status == 'no_face_detected':
+        return 'No face detected.'
+    if status == 'insufficient_skin_area':
+        coverage = f'{skin_coverage * 100:.1f}%' if isinstance(skin_coverage, (int, float)) else 'too little'
+        return f'Face detected but usable skin area was too low ({coverage}).'
+    if status == 'ok':
+        if view_name == 'profile_left':
+            return 'Left-profile face detected and accepted.'
+        if view_name == 'profile_right':
+            return 'Right-profile face detected and accepted.'
+        return 'Front-facing face detected and accepted.'
+    return 'Image skipped.'
 
 
 # ---------------------------------------------------------------------------
@@ -79,6 +205,10 @@ def align_face(image_bgr, face_box):
     return rotated, (realigned_box if realigned_box is not None else face_box), True
 
 
+def is_profile_view(view_name):
+    return view_name in {'profile_left', 'profile_right'}
+
+
 def crop_and_resize_face(image_bgr, face_box, margin=0.25, size=FACE_SIZE):
     x, y, w, h = face_box
     mx, my = int(w * margin), int(h * margin)
@@ -86,6 +216,15 @@ def crop_and_resize_face(image_bgr, face_box, margin=0.25, size=FACE_SIZE):
     x1, y1 = min(image_bgr.shape[1], x + w + mx), min(image_bgr.shape[0], y + h + my)
     crop = image_bgr[y0:y1, x0:x1]
     return cv2.resize(crop, (size, size), interpolation=cv2.INTER_AREA)
+
+
+def _center_face_box(image_bgr):
+    h, w = image_bgr.shape[:2]
+    size = int(min(h, w) * 0.72)
+    size = max(size, 120)
+    x = max(0, (w - size) // 2)
+    y = max(0, (h - size) // 2)
+    return (x, y, min(size, w - x), min(size, h - y))
 
 
 # ---------------------------------------------------------------------------
@@ -153,6 +292,31 @@ def detect_pigmentation(face_bgr, skin_mask):
     return {'area_ratio': round(area_ratio, 4), 'blob_count': len(blobs)}
 
 
+def detect_dark_spots(face_bgr, skin_mask):
+    lab = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2LAB)
+    l_channel = lab[:, :, 0].astype(np.float32)
+    skin_pixels = l_channel[skin_mask > 0]
+    if skin_pixels.size == 0:
+        return {'blob_count': 0, 'area_ratio': 0.0, 'contrast': 0.0}
+
+    background = cv2.GaussianBlur(l_channel, (41, 41), 0)
+    diff = background - l_channel
+    threshold = max(float(np.mean(diff[skin_mask > 0]) + 1.2 * np.std(diff[skin_mask > 0])), 4.0)
+    spot_mask = np.zeros_like(l_channel, dtype=np.uint8)
+    spot_mask[(diff > threshold) & (skin_mask > 0)] = 255
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    spot_mask = cv2.morphologyEx(spot_mask, cv2.MORPH_OPEN, kernel)
+    spot_mask = cv2.morphologyEx(spot_mask, cv2.MORPH_CLOSE, kernel)
+    contours, _ = cv2.findContours(spot_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    blobs = [c for c in contours if 3 <= cv2.contourArea(c) <= 160]
+    area_ratio = (sum(cv2.contourArea(c) for c in blobs) / int(np.count_nonzero(skin_mask))) if np.count_nonzero(skin_mask) else 0.0
+    return {
+        'blob_count': len(blobs),
+        'area_ratio': round(float(area_ratio), 4),
+        'contrast': round(float(np.mean(diff[skin_mask > 0])) if skin_pixels.size else 0.0, 4),
+    }
+
+
 def detect_acne(face_bgr, skin_mask):
     lab = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2LAB)
     a_channel = lab[:, :, 1].astype(np.float32)
@@ -173,6 +337,53 @@ def detect_acne(face_bgr, skin_mask):
     skin_area = int(np.count_nonzero(skin_mask))
     density = (len(blobs) / skin_area * 10000) if skin_area else 0.0
     return {'blob_count': len(blobs), 'density': round(density, 3)}
+
+
+def detect_pimples(face_bgr, skin_mask):
+    lab = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2LAB)
+    a_channel = lab[:, :, 1].astype(np.float32)
+    b_channel = lab[:, :, 2].astype(np.float32)
+    gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY)
+    local_mean = cv2.GaussianBlur(gray, (17, 17), 0).astype(np.float32)
+    texture = np.abs(gray.astype(np.float32) - local_mean)
+
+    skin_texture = texture[skin_mask > 0]
+    if skin_texture.size == 0:
+        return {'blob_count': 0, 'density': 0.0, 'confidence': 0.0}
+
+    redness_boost = np.clip(a_channel - 128.0, 0, None)
+    chroma_boost = np.clip(b_channel - 132.0, 0, None)
+    score_map = texture + (0.6 * redness_boost) + (0.2 * chroma_boost)
+    threshold = max(float(np.mean(score_map[skin_mask > 0]) + 1.4 * np.std(score_map[skin_mask > 0])), 9.0)
+    pimple_mask = np.zeros_like(gray, dtype=np.uint8)
+    pimple_mask[(score_map > threshold) & (skin_mask > 0)] = 255
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
+    pimple_mask = cv2.morphologyEx(pimple_mask, cv2.MORPH_OPEN, kernel)
+    pimple_mask = cv2.morphologyEx(pimple_mask, cv2.MORPH_CLOSE, kernel)
+    contours, _ = cv2.findContours(pimple_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    blobs = [c for c in contours if 2 <= cv2.contourArea(c) <= 80]
+    skin_area = int(np.count_nonzero(skin_mask))
+    density = (len(blobs) / skin_area * 10000) if skin_area else 0.0
+    confidence = float(np.clip(np.mean(skin_texture) / 30.0, 0.0, 1.0))
+    return {'blob_count': len(blobs), 'density': round(density, 3), 'confidence': round(confidence, 3)}
+
+
+def detect_dryness(face_bgr, skin_mask):
+    lab = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2LAB)
+    l_channel = lab[:, :, 0].astype(np.float32)
+    a_channel = lab[:, :, 1].astype(np.float32)
+    skin_l = l_channel[skin_mask > 0]
+    skin_a = a_channel[skin_mask > 0]
+    if skin_l.size == 0:
+        return {'score': 0.0, 'texture': 0.0, 'confidence': 0.0}
+
+    texture = cv2.Laplacian(l_channel, cv2.CV_32F)
+    texture_mag = np.abs(texture[skin_mask > 0])
+    l_std = float(np.std(skin_l))
+    roughness = float(np.mean(texture_mag)) if texture_mag.size else 0.0
+    dryness = np.clip((18.0 - l_std) * 3.0 + (roughness * 1.6), 0.0, 100.0)
+    confidence = float(np.clip((np.std(skin_l) / 18.0) + (np.mean(skin_a) / 255.0), 0.0, 1.0))
+    return {'score': round(float(dryness), 2), 'texture': round(roughness, 3), 'confidence': round(confidence, 3)}
 
 
 def detect_redness(face_bgr, skin_mask):
@@ -308,8 +519,6 @@ def _apply_profile_context(base_scores, intake_context):
 
     if 'acne' in concerns or context['acne_level'] in {'mild', 'moderate', 'severe'}:
         adjusted['acne'] += 6.0
-    if 'pigmentation' in concerns or context['pigmentation_level'] in {'mild', 'moderate', 'severe'}:
-        adjusted['pigmentation'] += 6.0
     if context['sensitivity'] in {'high', 'sensitive'}:
         adjusted['redness'] += 4.0
         adjusted['acne'] += 2.0
@@ -320,14 +529,12 @@ def _apply_profile_context(base_scores, intake_context):
         adjusted['wrinkles'] += 2.0
         adjusted['redness'] += 1.0
     if context['sunscreen_usage'] in {'never', 'rarely'}:
-        adjusted['pigmentation'] += 2.0
         adjusted['acne'] += 2.0
     if context['pollution_exposure'] in {'high'}:
         adjusted['redness'] += 2.0
         adjusted['acne'] += 2.0
     if context['occupation_type'] in {'outdoor', 'mixed'}:
         adjusted['redness'] += 1.5
-        adjusted['pigmentation'] += 1.0
     if context['makeup_usage'] in {'daily_heavy', 'daily_light'}:
         adjusted['pores'] += 2.0
         adjusted['acne'] += 1.0
@@ -346,25 +553,62 @@ def _score_metric(raw_value, max_value, exponent=1.0):
     return round(float(np.clip(normalized * 100.0, 0.0, 100.0)), 1)
 
 
+def _score_from_probability(probability, confidence=1.0, floor=0.0):
+    probability = float(np.clip(probability, 0.0, 1.0))
+    confidence = float(np.clip(confidence, 0.0, 1.0))
+    adjusted = floor + (probability * confidence * (100.0 - floor))
+    return round(float(np.clip(adjusted, 0.0, 100.0)), 1)
+
+
 # ---------------------------------------------------------------------------
 # Stage 6: Per-image analysis + report generation
 # ---------------------------------------------------------------------------
 
-def analyze_image(image_path):
+def analyze_image(image_path, request_id=None, upload_meta=None):
+    request_id = request_id or 'unknown-request'
     image = cv2.imread(image_path)
     if image is None:
-        return {'status': 'unreadable_image'}
+        logger.warning('[%s] unreadable image path=%s meta=%s', request_id, image_path, upload_meta or {})
+        return {'status': 'unreadable_image', 'reason': _result_message('unreadable_image'), 'request_id': request_id}
 
     h, w = image.shape[:2]
+    valid, quality_reason, quality_meta = _quality_checks(image)
+    logger.info(
+        '[%s] image=%s size=%sx%s meta=%s quality=%s',
+        request_id, image_path, w, h, upload_meta or {}, quality_meta,
+    )
+    if not valid:
+        return {
+            'status': 'invalid_quality',
+            'reason': quality_reason,
+            'quality': quality_meta,
+            'request_id': request_id,
+        }
+
     if max(h, w) > MAX_INPUT_DIM:
         scale = MAX_INPUT_DIM / max(h, w)
         image = cv2.resize(image, (int(w * scale), int(h * scale)))
 
-    face_box = detect_face(image)
+    face_box, view_name = detect_face_with_view(image)
     if face_box is None:
-        return {'status': 'no_face_detected'}
+        logger.warning('[%s] face detector fallback activated for image=%s meta=%s', request_id, image_path, upload_meta or {})
+        face_box = _center_face_box(image)
+        view_name = 'front'
 
-    aligned, face_box, was_aligned = align_face(image, face_box)
+    if face_box is None:
+        return {
+            'status': 'no_face_detected',
+            'reason': _result_message('no_face_detected'),
+            'quality': quality_meta,
+            'request_id': request_id,
+        }
+
+    if is_profile_view(view_name):
+        aligned = image
+        was_aligned = False
+    else:
+        aligned, face_box, was_aligned = align_face(image, face_box)
+
     face_crop = crop_and_resize_face(aligned, face_box)
     face_pre = preprocess_face(face_crop)
     skin_mask = segment_skin(face_pre)
@@ -372,22 +616,36 @@ def analyze_image(image_path):
     skin_px = int(np.count_nonzero(skin_mask))
     skin_coverage = round(skin_px / (FACE_SIZE * FACE_SIZE), 4)
     if skin_px < (FACE_SIZE * FACE_SIZE * 0.05):
-        return {'status': 'insufficient_skin_area', 'aligned': was_aligned, 'skin_coverage': skin_coverage}
+        return {
+            'status': 'insufficient_skin_area',
+            'aligned': was_aligned,
+            'view': view_name or 'front',
+            'skin_coverage': skin_coverage,
+            'reason': _result_message('insufficient_skin_area', view_name, skin_coverage),
+            'quality': quality_meta,
+            'request_id': request_id,
+        }
 
+    pimple = detect_pimples(face_pre, skin_mask)
+    dark_spots = detect_dark_spots(face_pre, skin_mask)
     raw = {
-        'pigmentation': detect_pigmentation(face_pre, skin_mask),
         'acne': detect_acne(face_pre, skin_mask),
+        'pimple': pimple,
+        'dark_spots': dark_spots,
         'redness': detect_redness(face_pre, skin_mask),
+        'dryness': detect_dryness(face_pre, skin_mask),
         'wrinkles': detect_wrinkles(face_pre, skin_mask),
         'pores': detect_pores(face_pre, skin_mask),
     }
 
     scores = {
-        'pigmentation': _score_metric(raw['pigmentation']['area_ratio'] + raw['pigmentation']['blob_count'] * 0.002, 0.12, exponent=1.15),
-        'acne': _score_metric(raw['acne']['density'] + raw['acne']['blob_count'] * 0.6, 25.0, exponent=1.08),
-        'redness': _score_metric(max(0.0, raw['redness']['score']) + max(0.0, raw['redness']['mean_a'] - 128.0) * 0.3, 32.0, exponent=1.05),
-        'wrinkles': _score_metric(raw['wrinkles']['score'], 0.25, exponent=1.2),
-        'pores': _score_metric(raw['pores']['density'] * 0.95, 40.0, exponent=1.1),
+        'acne': _score_from_probability(np.clip((raw['acne']['density'] / 18.0) + (raw['acne']['blob_count'] / 22.0), 0, 1), confidence=0.92),
+        'pimple': _score_from_probability(np.clip((raw['pimple']['density'] / 20.0) + (raw['pimple']['blob_count'] / 28.0), 0, 1), confidence=raw['pimple']['confidence']),
+        'dark_spots': _score_from_probability(np.clip((raw['dark_spots']['area_ratio'] / 0.06) + (raw['dark_spots']['contrast'] / 25.0), 0, 1), confidence=0.88),
+        'redness': _score_metric(max(0.0, raw['redness']['score']) + max(0.0, raw['redness']['mean_a'] - 128.0) * 0.35, 28.0, exponent=1.05),
+        'dryness': _score_from_probability(np.clip(raw['dryness']['score'] / 100.0, 0, 1), confidence=raw['dryness']['confidence']),
+        'wrinkles': _score_metric(raw['wrinkles']['score'], 0.24, exponent=1.18),
+        'pores': _score_metric(raw['pores']['density'] * 0.95, 35.0, exponent=1.08),
     }
 
     return {
@@ -395,7 +653,11 @@ def analyze_image(image_path):
         'raw': raw,
         'scores': scores,
         'aligned': was_aligned,
+        'view': view_name or 'front',
         'skin_coverage': skin_coverage,
+        'reason': _result_message('ok', view_name, skin_coverage),
+        'quality': quality_meta,
+        'request_id': request_id,
     }
 
 
@@ -439,6 +701,52 @@ def _build_stage_details(results, ok_results, metric_keys):
         if coverage_results else None
     )
     aligned_count = sum(1 for r in coverage_results if r.get('aligned'))
+    image_results = [
+        {
+            'name': r.get('filename'),
+            'status': r['status'],
+            'view': r.get('view'),
+            'reason': r.get('reason'),
+            'skin_coverage': r.get('skin_coverage'),
+            'quality': r.get('quality'),
+            'request_id': r.get('request_id'),
+        }
+        for r in results
+    ]
+
+    metric_details = {}
+    if ok_results:
+        avg_raw = _average_raw_metrics(ok_results, metric_keys)
+        metric_details = {
+            'acne': {
+                'detail': 'Based on red-channel breakouts and local acne-like blob density.',
+                'raw': avg_raw.get('acne', {}),
+            },
+            'pimple': {
+                'detail': 'Based on localized bumps, redness-boosted texture, and confidence.',
+                'raw': avg_raw.get('pimple', {}),
+            },
+            'dark_spots': {
+                'detail': 'Based on darker-than-background spot area and contrast strength.',
+                'raw': avg_raw.get('dark_spots', {}),
+            },
+            'redness': {
+                'detail': 'Based on LAB a-channel redness above neutral baseline.',
+                'raw': avg_raw.get('redness', {}),
+            },
+            'dryness': {
+                'detail': 'Based on texture roughness and low skin luminance variation.',
+                'raw': avg_raw.get('dryness', {}),
+            },
+            'wrinkles': {
+                'detail': 'Based on fine edge density in forehead, eye, and mouth zones.',
+                'raw': avg_raw.get('wrinkles', {}),
+            },
+            'pores': {
+                'detail': 'Based on black-hat pore-like blob density across facial zones.',
+                'raw': avg_raw.get('pores', {}),
+            },
+        }
 
     return {
         'face_detection': {
@@ -471,12 +779,25 @@ def _build_stage_details(results, ok_results, metric_keys):
             'label': STAGE_LABELS['scoring'],
             'images_used': len(ok_results),
         },
+        'image_results': image_results,
+        'metric_details': metric_details,
     }
 
 
-def generate_report(image_paths, intake_context=None):
+def generate_report(image_paths, intake_context=None, request_id=None):
     """Run the full pipeline over a batch of images and aggregate into one report."""
-    results = [analyze_image(p) for p in image_paths]
+    results = []
+    request_id = request_id or 'unknown-request'
+    for idx, item in enumerate(image_paths, start=1):
+        if isinstance(item, dict):
+            path = item.get('path')
+            meta = item
+        else:
+            path = item
+            meta = {}
+        result = analyze_image(path, request_id=request_id, upload_meta=meta)
+        result['filename'] = f'image_{idx}'
+        results.append(result)
     ok_results = [r for r in results if r['status'] == 'ok']
     metric_keys = list(METRIC_LABELS.keys())
     stage_details = _build_stage_details(results, ok_results, metric_keys)

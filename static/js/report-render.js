@@ -1,7 +1,7 @@
 /* Shared report-rendering helpers, used by app.js (post-upload card) and
    report_detail.js (standalone report page). Must be loaded before both. */
 
-const METRIC_ORDER = ['pigmentation', 'acne', 'redness', 'wrinkles', 'pores'];
+const METRIC_ORDER = ['acne', 'pimple', 'dark_spots', 'redness', 'dryness', 'wrinkles', 'pores'];
 
 function formatDate(iso) {
     return new Date(iso).toLocaleString(undefined, {
@@ -72,7 +72,7 @@ const STAGE_ORDER = [
         return `${s.images_processed} image(s) processed — ${s.techniques.join(', ')}`;
     } },
     { key: 'feature_extraction', detail: function(s) {
-        return `${s.images_analyzed} image(s) analyzed for pigmentation, acne, redness, wrinkles and pores`;
+        return `${s.images_analyzed} image(s) analyzed for acne, redness, dryness, wrinkles and pores`;
     } },
     { key: 'scoring', detail: function(s) {
         return `Final metric scores computed from ${s.images_used} image(s)`;
@@ -104,13 +104,44 @@ function buildStepsHtml(stageDetails) {
     `;
 }
 
+function buildImageResultsHtml(stageDetails) {
+    const items = stageDetails?.image_results || [];
+    if (!items.length) return '';
+
+    const rows = items.map(function(item, index) {
+        const statusClass = item.status === 'ok' ? 'is-ok' : 'is-failed';
+        const viewLabel = item.view === 'profile_left' ? 'Left profile'
+            : item.view === 'profile_right' ? 'Right profile'
+            : 'Front view';
+        const coverage = typeof item.skin_coverage === 'number'
+            ? ` · skin coverage ${(item.skin_coverage * 100).toFixed(1)}%`
+            : '';
+        return `
+            <div class="report-image-review-row ${statusClass}">
+                <div class="report-image-review-index">${index + 1}</div>
+                <div class="report-image-review-body">
+                    <span class="report-image-review-title">${escapeHtml(viewLabel)}</span>
+                    <span class="report-image-review-detail">${escapeHtml(item.reason || 'No details available.')}${coverage}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="report-image-review">
+            <h3 class="report-steps-title">Image Review</h3>
+            <div class="report-image-review-list">${rows}</div>
+        </div>
+    `;
+}
+
 function buildAiAnalysisHtml(report) {
     const hasCached = Boolean(report.ai_analysis);
     const cached = hasCached
         ? `<div class="report-ai-result">${escapeHtml(report.ai_analysis).replace(/\n/g, '<br>')}</div>`
         : `<div class="report-ai-empty">Your AI skin advisor summary will appear here after you generate it.</div>`;
 
-    const actionLabel = hasCached ? 'Refresh AI Summary' : 'Generate AI Summary';
+    const actionLabel = hasCached ? 'Refresh Treatment and Recommendation' : 'Treatment and Recommendation';
     const buttonHtml = report.id
         ? `<button type="button" class="btn-primary report-ai-btn">${actionLabel}</button>`
         : '';
@@ -119,13 +150,15 @@ function buildAiAnalysisHtml(report) {
         <div class="report-ai-section" data-report-id="${report.id}">
             <div class="report-ai-head">
                 <div>
-                    <div class="report-ai-kicker">AI Skin Advisor</div>
-                    <h4>Clinical insights with a luxury care feel</h4>
+                    <div class="report-ai-kicker">Treatment Plan</div>
+                    <h4>Clinical recommendation and care guidance</h4>
                 </div>
-                ${buttonHtml}
             </div>
             <div class="report-ai-error d-none"></div>
             ${cached}
+            <div class="report-action-row report-ai-action-row">
+                ${buttonHtml}
+            </div>
         </div>
     `;
 }
@@ -147,7 +180,7 @@ $(document).on('click', '.report-ai-btn', function() {
             $section.find('.report-ai-empty').remove();
             $section.find('.report-ai-result').remove();
             $section.append(`<div class="report-ai-result">${escapeHtml(res.ai_analysis).replace(/\n/g, '<br>')}</div>`);
-            $btn.text('Refresh AI Summary');
+            $btn.text('Refresh Treatment and Recommendation');
         },
         error: function(err) {
             $error.removeClass('d-none').text(err.responseJSON?.msg || 'AI analysis failed. Please try again.');
@@ -220,11 +253,16 @@ function intakeField(label, key, rawValue, unit) {
     `;
 }
 
-function intakeSection(title, innerHtml) {
+function intakeSection(title, innerHtml, sectionKey) {
     return `
         <div class="intake-section">
-            <h4 class="intake-section-title">${title}</h4>
-            <div class="intake-fields-grid">${innerHtml}</div>
+            <button type="button" class="intake-section-toggle" data-target="${sectionKey}" aria-expanded="false">
+                <span>${title}</span>
+                <span class="intake-section-caret">⌄</span>
+            </button>
+            <div class="intake-section-panel d-none" data-panel="${sectionKey}">
+                <div class="intake-fields-grid">${innerHtml}</div>
+            </div>
         </div>
     `;
 }
@@ -283,13 +321,40 @@ function buildIntakeHtml(intake) {
     return `
         <div class="report-intake-panel">
             <h3 class="report-intake-heading">Clinical Intake</h3>
-            ${intakeSection('Skin Profile', skinHtml)}
-            ${intakeSection('Lifestyle', lifestyleHtml)}
-            ${intakeSection('Allergies', allergyHtml)}
-            ${intakeSection('Diet &amp; Habits', dietHtml)}
+            ${intakeSection('Skin Profile', skinHtml, 'skin')}
+            ${intakeSection('Lifestyle', lifestyleHtml, 'lifestyle')}
+            ${intakeSection('Allergies', allergyHtml, 'allergies')}
+            ${intakeSection('Diet &amp; Habits', dietHtml, 'diet')}
         </div>
     `;
 }
+
+$(document).on('click', '.intake-section-toggle', function() {
+    const key = $(this).data('target');
+    const $panel = $(`.intake-section-panel[data-panel="${key}"]`);
+    const expanded = $(this).attr('aria-expanded') === 'true';
+    $(this).attr('aria-expanded', String(!expanded));
+    $panel.toggleClass('d-none', expanded);
+});
+
+$(document).on('click', '.report-summary-toggle', function() {
+    const expanded = $(this).attr('aria-expanded') === 'true';
+    $(this).attr('aria-expanded', String(!expanded));
+    $(this).closest('.report-summary-section').find('.report-summary-panel').toggleClass('d-none', expanded);
+});
+
+$(document).on('click', '.report-photo-toggle', function() {
+    const expanded = $(this).attr('aria-expanded') === 'true';
+    $(this).attr('aria-expanded', String(!expanded));
+    $(this).closest('.report-photo-section').find('.report-photo-panel').toggleClass('d-none', expanded);
+});
+
+$(document).on('click', '.report-metric-toggle', function() {
+    const key = $(this).data('target');
+    const expanded = $(this).attr('aria-expanded') === 'true';
+    $(this).attr('aria-expanded', String(!expanded));
+    $(`.report-metric-details[data-panel="${key}"]`).toggleClass('d-none', expanded);
+});
 
 function buildReportPageHtml(report) {
     return `
@@ -317,24 +382,71 @@ function buildReportCardHtml(report) {
     const metricsHtml = METRIC_ORDER.map(function(key) {
         const m = report.metrics[key];
         if (!m) return '';
+        const detail = report.stage_details?.metric_details?.[key] || {};
+        const raw = detail.raw || {};
+        const detailText = detail.detail || `Score based on ${m.label.toLowerCase()} features.`;
         return `
             <div class="report-metric-item">
-                <div class="report-metric-head">
-                    <span class="report-metric-name">${m.label}</span>
-                    <span class="severity-badge severity-${m.severity}">${m.severity}</span>
-                </div>
-                <div class="report-metric-bar-track">
-                    <div class="report-metric-bar-fill bar-severity-${m.severity}" style="width: ${m.score}%;"></div>
+                <button type="button" class="report-metric-toggle" data-target="${key}" aria-expanded="false">
+                    <div class="report-metric-head">
+                        <span class="report-metric-name">${m.label}</span>
+                        <span class="severity-badge severity-${m.severity}">${m.severity}</span>
+                    </div>
+                    <div class="report-metric-bar-track">
+                        <div class="report-metric-bar-fill bar-severity-${m.severity}" style="width: ${m.score}%;"></div>
+                    </div>
+                </button>
+                <div class="report-metric-details d-none" data-panel="${key}">
+                    <div class="report-metric-detail-copy">${escapeHtml(detailText)}</div>
+                    ${Object.keys(raw).length ? `<div class="report-metric-detail-raw">${escapeHtml(JSON.stringify(raw))}</div>` : ''}
                 </div>
             </div>
         `;
     }).join('');
 
     const imagesHtml = (report.images && report.images.length)
-        ? `<div class="report-images-grid">${report.images.map(function(url) {
-              return `<img class="report-image-thumb" src="${url}" alt="Uploaded photo">`;
-          }).join('')}</div>`
+        ? `
+            <div class="report-photo-section">
+                <button type="button" class="report-photo-toggle" aria-expanded="false">
+                    <span>Photography</span>
+                    <span class="intake-section-caret">⌄</span>
+                </button>
+                <div class="report-photo-panel d-none">
+                    <div class="report-images-grid">${report.images.map(function(url) {
+                        return `<img class="report-image-thumb" src="${url}" alt="Uploaded photo">`;
+                    }).join('')}</div>
+                </div>
+            </div>
+        `
         : '';
+
+    const patientSnapshotHtml = `
+        <div class="report-intake-section report-summary-section">
+            <button type="button" class="report-summary-toggle" aria-expanded="false">
+                <span>Patient Summary</span>
+                <span class="intake-section-caret">⌄</span>
+            </button>
+            <div class="report-summary-panel d-none">
+                <div class="report-intake-grid">
+                    <div class="report-intake-block">
+                        <h4>Assessment Overview</h4>
+                        <div class="report-intake-row">
+                            <span class="report-intake-key">Usable Images</span>
+                            <span class="report-intake-value">${report.images_analyzed}</span>
+                        </div>
+                        <div class="report-intake-row">
+                            <span class="report-intake-key">Images Skipped</span>
+                            <span class="report-intake-value">${report.images_skipped || 0}</span>
+                        </div>
+                        <div class="report-intake-row">
+                            <span class="report-intake-key">Assessment Date</span>
+                            <span class="report-intake-value">${formatDate(report.created_at)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 
     const intakeSummary = report.intake_summary || {};
     const intakeHtml = intakeSummary.skin_profile || intakeSummary.lifestyle_profile || intakeSummary.allergy_profile || intakeSummary.diet_profile
@@ -351,14 +463,13 @@ function buildReportCardHtml(report) {
         `
         : '';
 
-    const actionHtml = report.id ? `
-        <div class="report-action-row">
-            <a href="/reports/${report.id}" class="btn-success btn-ai-action">Continue with AI Clinical Report</a>
-        </div>
-    ` : '';
-
     return `
         <div class="report-card">
+            <div class="report-report-title">
+                <div class="report-page-kicker">Medical Skin Report</div>
+                <h2>${report.username ? `Patient assessment for ${escapeHtml(report.username)}` : 'Patient assessment with structured clinical findings'}</h2>
+                <p>All uploaded inputs and image-derived scores are summarized below for review and future recommendations.</p>
+            </div>
             <div class="report-score-row">
                 <div class="report-score-circle circle-severity-${overallSeverity}">
                     <span class="report-score-value">${score}</span>
@@ -369,12 +480,11 @@ function buildReportCardHtml(report) {
                     <span class="report-score-date">${report.images_analyzed} image(s) analyzed &middot; ${formatDate(report.created_at)}</span>
                 </div>
             </div>
+            ${patientSnapshotHtml}
             <div class="report-metrics-grid">${metricsHtml}</div>
             ${imagesHtml}
             ${intakeHtml}
-            ${buildStepsHtml(report.stage_details)}
             ${buildAiAnalysisHtml(report)}
-            ${actionHtml}
         </div>
     `;
 }
