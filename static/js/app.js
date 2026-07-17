@@ -255,6 +255,7 @@
         const data = {
             username: $('#reg-username').val(),
             email: $('#reg-email').val(),
+            gender: $('#reg-gender').val(),
             password: $('#reg-password').val()
         };
 
@@ -470,11 +471,292 @@
     const $fileInput = $('#images');
     const $previewGrid = $('#image-preview-grid');
     const $cameraPanel = $('#camera-panel');
+    const $cameraViewfinder = $('.camera-viewfinder');
     const cameraVideo = document.getElementById('camera-video');
     const cameraCanvas = document.getElementById('camera-canvas');
+    const cameraGuide = document.querySelector('.camera-face-guide');
+    const cameraGuideBadge = document.getElementById('camera-guide-badge');
+    const cameraGuideText = document.getElementById('camera-guide-text');
+    const cameraFlash = document.getElementById('camera-capture-flash');
     let cameraStream = null;
+    let cameraAutoTimer = null;
+    let cameraTrackingActive = false;
+    let cameraTrackingInProgress = false;
+    let faceStableHits = 0;
+    let faceMesh = null;
+    let faceMeshLastResult = null;
+    let captureCountdownTimer = null;
+    let captureCountdownRunning = false;
+
+    function ensureFaceMesh() {
+        if (faceMesh || typeof FaceMesh === 'undefined') return faceMesh;
+        faceMesh = new FaceMesh({
+            locateFile: function(file) {
+                return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
+            }
+        });
+        faceMesh.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: true,
+            minDetectionConfidence: 0.55,
+            minTrackingConfidence: 0.55
+        });
+        faceMesh.onResults(function(results) {
+            faceMeshLastResult = results;
+        });
+        return faceMesh;
+    }
+
+    function clearCameraAutoTracking() {
+        cameraTrackingActive = false;
+        cameraTrackingInProgress = false;
+        faceStableHits = 0;
+        if (cameraAutoTimer) {
+            cancelAnimationFrame(cameraAutoTimer);
+            cameraAutoTimer = null;
+        }
+        if (captureCountdownTimer) {
+            clearTimeout(captureCountdownTimer);
+            captureCountdownTimer = null;
+        }
+        captureCountdownRunning = false;
+        if (cameraGuideBadge) {
+            cameraGuideBadge.classList.remove('is-left', 'is-right', 'is-center', 'is-too-close', 'is-off', 'is-pulse');
+        }
+    }
+
+    function faceInsideGuide(bounds) {
+        if (!bounds || !cameraVideo || !cameraGuide) return false;
+        const videoRect = cameraVideo.getBoundingClientRect();
+        const guideRect = cameraGuide.getBoundingClientRect();
+        const faceLeft = videoRect.left + bounds.x;
+        const faceTop = videoRect.top + bounds.y;
+        const faceRight = faceLeft + bounds.width;
+        const faceBottom = faceTop + bounds.height;
+        const overlapX = Math.min(faceRight, guideRect.right) - Math.max(faceLeft, guideRect.left);
+        const overlapY = Math.min(faceBottom, guideRect.bottom) - Math.max(faceTop, guideRect.top);
+        const overlapArea = Math.max(0, overlapX) * Math.max(0, overlapY);
+        const faceArea = Math.max(1, bounds.width * bounds.height);
+        const coverage = overlapArea / faceArea;
+        const centeredX = Math.abs((faceLeft + faceRight) / 2 - guideRect.left - guideRect.width / 2) / guideRect.width;
+        const centeredY = Math.abs((faceTop + faceBottom) / 2 - guideRect.top - guideRect.height / 2) / guideRect.height;
+        return coverage >= 0.72 && centeredX <= 0.18 && centeredY <= 0.18;
+    }
+
+    function setCameraGuideState(state, text) {
+        if (cameraGuideBadge) {
+            cameraGuideBadge.classList.remove('is-left', 'is-right', 'is-center', 'is-too-close', 'is-off', 'is-pulse');
+            cameraGuideBadge.classList.add(`is-${state}`);
+            cameraGuideBadge.classList.add('is-pulse');
+            window.setTimeout(function() {
+                cameraGuideBadge.classList.remove('is-pulse');
+            }, 240);
+        }
+        if (cameraGuideText) {
+            cameraGuideText.textContent = text;
+        }
+    }
+
+    function runCaptureCountdown(done) {
+        if (captureCountdownRunning) return;
+        captureCountdownRunning = true;
+        const steps = [
+            { label: '3', hint: 'Capturing in 3...' },
+            { label: '2', hint: 'Capturing in 2...' },
+            { label: '1', hint: 'Capturing in 1...' },
+            { label: 'Click!', hint: 'Click!' }
+        ];
+
+        let index = 0;
+        const stepNext = function() {
+            if (!cameraTrackingActive) {
+                captureCountdownRunning = false;
+                return;
+            }
+            const step = steps[index];
+            if (cameraGuideText) cameraGuideText.textContent = step.label;
+            $('#camera-angle-hint').text(step.hint);
+            if (cameraGuideBadge) cameraGuideBadge.classList.add('is-pulse');
+            window.setTimeout(function() {
+                if (cameraGuideBadge) cameraGuideBadge.classList.remove('is-pulse');
+            }, 180);
+            index += 1;
+            if (index < steps.length) {
+                captureCountdownTimer = window.setTimeout(stepNext, 250);
+            } else {
+                captureCountdownRunning = false;
+                done();
+            }
+        };
+
+        stepNext();
+    }
+
+    function faceBoxFromLandmarks(landmarks) {
+        if (!landmarks || !landmarks.length || !cameraVideo) return null;
+        let minX = 1;
+        let minY = 1;
+        let maxX = 0;
+        let maxY = 0;
+        landmarks.forEach(function(point) {
+            minX = Math.min(minX, point.x);
+            minY = Math.min(minY, point.y);
+            maxX = Math.max(maxX, point.x);
+            maxY = Math.max(maxY, point.y);
+        });
+        return {
+            x: minX * cameraVideo.videoWidth,
+            y: minY * cameraVideo.videoHeight,
+            width: (maxX - minX) * cameraVideo.videoWidth,
+            height: (maxY - minY) * cameraVideo.videoHeight
+        };
+    }
+
+    function captureCurrentFrame() {
+        if (!cameraStream || !cameraVideo.videoWidth) {
+            showToast('The camera is still starting. Please try again.', 'info');
+            return;
+        }
+        if ($cameraViewfinder.length) {
+            $cameraViewfinder.addClass('is-capturing');
+            window.setTimeout(function() {
+                $cameraViewfinder.removeClass('is-capturing');
+            }, 280);
+        }
+        if (cameraFlash) {
+            cameraFlash.style.opacity = '1';
+            window.setTimeout(function() {
+                cameraFlash.style.opacity = '0';
+            }, 260);
+        }
+        const targetWidth = Math.min(cameraVideo.videoWidth, 960);
+        const scale = targetWidth / cameraVideo.videoWidth;
+        const targetHeight = Math.round(cameraVideo.videoHeight * scale);
+        cameraCanvas.width = targetWidth;
+        cameraCanvas.height = targetHeight;
+        const context = cameraCanvas.getContext('2d');
+        context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
+        cameraCanvas.toBlob(function(blob) {
+            if (!blob) {
+                showToast('Could not capture the photo. Please try again.', 'error');
+                return;
+            }
+            const file = new File([blob], `camera-${Date.now()}.jpg`, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+            });
+            addFiles([file]);
+            const views = ['front view', 'left-side view', 'right-side view'];
+            const nextView = views[Math.min(selectedFiles.length, 2)];
+            const captureLabel = selectedFiles.length >= 3
+                ? 'Photo captured. Minimum complete — you can submit now.'
+                : `Photo captured. Next: capture the ${nextView}.`;
+            $('#camera-angle-hint').text(captureLabel);
+            setCameraGuideState(selectedFiles.length >= 3 ? 'center' : (selectedFiles.length === 1 ? 'left' : 'right'),
+                selectedFiles.length >= 3 ? 'Captured' : `Next ${nextView}`);
+            showToast('Photo captured successfully.', 'success');
+        }, 'image/jpeg', 0.82);
+    }
+
+    function startCameraAutoTracking() {
+        clearCameraAutoTracking();
+        if (!cameraStream || !cameraVideo.videoWidth) return;
+        if (typeof FaceMesh === 'undefined') {
+            $('#camera-angle-hint').text('Live guidance is not supported in this browser. Use the Capture Photo button.');
+            setCameraGuideState('off', 'Use capture button');
+            return;
+        }
+        ensureFaceMesh();
+        if (!faceMesh) {
+            $('#camera-angle-hint').text('Live guidance is not ready yet. Use the Capture Photo button.');
+            setCameraGuideState('off', 'Use capture button');
+            return;
+        }
+        cameraTrackingActive = true;
+        $('#camera-angle-hint').text('Hold still — we will capture automatically when your face is centered.');
+        setCameraGuideState('off', 'Center your face');
+
+        const tick = async function() {
+            if (!cameraTrackingActive || !cameraStream) return;
+            if (cameraTrackingInProgress || !cameraVideo.videoWidth) {
+                cameraAutoTimer = requestAnimationFrame(tick);
+                return;
+            }
+            cameraTrackingInProgress = true;
+            try {
+                await faceMesh.send({ image: cameraVideo });
+                const landmarks = faceMeshLastResult?.multiFaceLandmarks?.[0];
+                const faceBox = faceBoxFromLandmarks(landmarks);
+                if (faceBox && faceInsideGuide(faceBox)) {
+                    faceStableHits += 1;
+                    if (!captureCountdownRunning) {
+                        setCameraGuideState('center', 'Face centered');
+                        runCaptureCountdown(function() {
+                            cameraTrackingActive = false;
+                            captureCurrentFrame();
+                        });
+                        return;
+                    }
+                } else {
+                    faceStableHits = 0;
+                    if (captureCountdownTimer) {
+                        clearTimeout(captureCountdownTimer);
+                        captureCountdownTimer = null;
+                    }
+                    captureCountdownRunning = false;
+                    if (faceBox) {
+                        const faceCenterX = faceBox.x + (faceBox.width / 2);
+                        const faceCenterY = faceBox.y + (faceBox.height / 2);
+                        const frameCenterX = cameraVideo.videoWidth / 2;
+                        const frameCenterY = cameraVideo.videoHeight / 2;
+                        const horizontalOffset = faceCenterX - frameCenterX;
+                        const verticalOffset = faceCenterY - frameCenterY;
+                        const faceScale = Math.max(faceBox.width, faceBox.height);
+                        const closeThreshold = Math.min(cameraVideo.videoWidth, cameraVideo.videoHeight) * 0.22;
+                        const moveThresholdX = Math.max(80, cameraVideo.videoWidth * 0.08);
+                        const moveThresholdY = Math.max(60, cameraVideo.videoHeight * 0.07);
+
+                        if (faceScale < closeThreshold) {
+                            $('#camera-angle-hint').text('Move closer to the camera.');
+                            setCameraGuideState('too-close', 'Come closer');
+                        } else if (Math.abs(horizontalOffset) > moveThresholdX) {
+                            if (horizontalOffset > 0) {
+                                $('#camera-angle-hint').text('Move a little left so your face sits in the circle.');
+                                setCameraGuideState('left', 'Move left');
+                            } else {
+                                $('#camera-angle-hint').text('Move a little right so your face sits in the circle.');
+                                setCameraGuideState('right', 'Move right');
+                            }
+                        } else if (Math.abs(verticalOffset) > moveThresholdY) {
+                            if (verticalOffset > 0) {
+                                $('#camera-angle-hint').text('Raise your face slightly to center it.');
+                                setCameraGuideState('center', 'Move up');
+                            } else {
+                                $('#camera-angle-hint').text('Lower your face slightly to center it.');
+                                setCameraGuideState('center', 'Move down');
+                            }
+                        } else {
+                            $('#camera-angle-hint').text('Hold still — face is nearly centered.');
+                            setCameraGuideState('center', 'Hold still');
+                        }
+                    } else {
+                        $('#camera-angle-hint').text('Move into the circle so we can detect your face.');
+                        setCameraGuideState('off', 'Face not found');
+                    }
+                }
+            } catch (error) {
+                faceStableHits = 0;
+            } finally {
+                cameraTrackingInProgress = false;
+            }
+            cameraAutoTimer = requestAnimationFrame(tick);
+        };
+
+        cameraAutoTimer = requestAnimationFrame(tick);
+    }
 
     function stopCamera() {
+        clearCameraAutoTracking();
         if (cameraStream) {
             cameraStream.getTracks().forEach(function(track) { track.stop(); });
             cameraStream = null;
@@ -498,6 +780,11 @@
             $cameraPanel.removeClass('d-none').addClass('fade-in');
             $(this).prop('disabled', true);
             $cameraPanel[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            cameraVideo.onloadedmetadata = function() {
+                cameraVideo.play().catch(function() {});
+                setCameraGuideState('off', 'Center your face');
+                startCameraAutoTracking();
+            };
         } catch (error) {
             showToast(error.name === 'NotAllowedError'
                 ? 'Camera permission was denied. Please allow camera access and try again.'
@@ -509,31 +796,7 @@
     $('#close-camera-btn').on('click', stopCamera);
 
     $('#capture-photo-btn').on('click', function() {
-        if (!cameraStream || !cameraVideo.videoWidth) {
-            showToast('The camera is still starting. Please try again.', 'info');
-            return;
-        }
-        cameraCanvas.width = cameraVideo.videoWidth;
-        cameraCanvas.height = cameraVideo.videoHeight;
-        const context = cameraCanvas.getContext('2d');
-        context.drawImage(cameraVideo, 0, 0, cameraCanvas.width, cameraCanvas.height);
-        cameraCanvas.toBlob(function(blob) {
-            if (!blob) {
-                showToast('Could not capture the photo. Please try again.', 'error');
-                return;
-            }
-            const file = new File([blob], `camera-${Date.now()}.jpg`, {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-            });
-            addFiles([file]);
-            const views = ['front view', 'left-side view', 'right-side view'];
-            const nextView = views[Math.min(selectedFiles.length, 2)];
-            $('#camera-angle-hint').text(selectedFiles.length >= 3
-                ? 'Minimum complete. Add more photos or submit your profile.'
-                : `Next: capture the ${nextView}.`);
-            showToast('Photo captured successfully.', 'success');
-        }, 'image/jpeg', 0.92);
+        captureCurrentFrame();
     });
 
     function syncFileInput() {
@@ -633,13 +896,46 @@
             processData: false,
             contentType: false,
             success: function(res) {
-                const reportStatus = res.report?.status;
+                const reportStatus = res.status || res.report?.status;
+                if (reportStatus !== 'ok') {
+                    const retryMessage = res.msg || res.report?.message || 'Image analysis failed. Please upload new images or click new images and submit again.';
+                    $('.step-content').addClass('d-none').removeClass('active');
+                    $('#step-success').removeClass('d-none').addClass('active fade-in');
+                    $('#form-progress').css('width', `100%`);
+                    $('#progress-percent').text(100);
+                    $('.step-list-item').removeClass('active').addClass('completed');
+                    $('#header-status').text('Assessment Incomplete');
+                    $('#report-container').html(`
+                        <div class="report-launch-card report-launch-card-error">
+                            <div class="report-launch-message">
+                                <span class="report-launch-kicker">Image Analysis Issue</span>
+                                <h3>We could not extract usable facial images</h3>
+                                <p>${retryMessage}</p>
+                                <div class="report-launch-meta">
+                                    <span class="report-launch-pill">Upload new images</span>
+                                    <span class="report-launch-pill">Or capture new images</span>
+                                </div>
+                            </div>
+                            <div class="report-launch-action">
+                                <button type="button" class="btn-success btn-ai-action btn-ai-action-lg" id="retry-images-btn">
+                                    <span>Try Again</span>
+                                </button>
+                            </div>
+                        </div>
+                    `);
+                    selectedFiles = [];
+                    syncFileInput();
+                    renderPreviews();
+                    persistWizardState();
+                    showToast(retryMessage, 'error');
+                    return;
+                }
                 $('.step-content').addClass('d-none').removeClass('active');
                 $('#step-success').removeClass('d-none').addClass('active fade-in');
                 $('#form-progress').css('width', `100%`);
                 $('#progress-percent').text(100);
                 $('.step-list-item').removeClass('active').addClass('completed');
-                $('#header-status').text(reportStatus === 'ok' ? 'Assessment Complete' : 'Assessment Incomplete');
+                $('#header-status').text('Assessment Complete');
                 if (res.report) {
                     sessionStorage.setItem('skinsync_last_report_id', res.report.id);
                     const clinicalReportHtml = res.report.id
@@ -676,6 +972,12 @@
             },
             complete: function() { setButtonLoading($btn, false); }
         });
+    });
+
+    $(document).on('click', '#retry-images-btn', function() {
+        $('.step-content').addClass('d-none').removeClass('active');
+        $('#step-5').removeClass('d-none').addClass('active fade-in');
+        $('#header-status').text('Clinical Assessment In Progress');
     });
 
     $(document).on('click', '#clinical-report-btn', function() {
@@ -751,6 +1053,7 @@
     });
 
 });
+
 
 
 

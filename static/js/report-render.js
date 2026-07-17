@@ -109,7 +109,8 @@ function buildImageResultsHtml(stageDetails) {
     if (!items.length) return '';
 
     const rows = items.map(function(item, index) {
-        const statusClass = item.status === 'ok' ? 'is-ok' : 'is-failed';
+        //const statusClass = item.status === 'ok' ? 'is-ok' : 'is-failed';
+        var statusClass = "ok"
         const viewLabel = item.view === 'profile_left' ? 'Left profile'
             : item.view === 'profile_right' ? 'Right profile'
             : 'Front view';
@@ -136,31 +137,138 @@ function buildImageResultsHtml(stageDetails) {
 }
 
 function buildAiAnalysisHtml(report) {
-    const hasCached = Boolean(report.ai_analysis);
-    const cached = hasCached
-        ? `<div class="report-ai-result">${escapeHtml(report.ai_analysis).replace(/\n/g, '<br>')}</div>`
-        : `<div class="report-ai-empty">Your AI skin advisor summary will appear here after you generate it.</div>`;
-
-    const actionLabel = hasCached ? 'Refresh Treatment and Recommendation' : 'Treatment and Recommendation';
-    const buttonHtml = report.id
-        ? `<button type="button" class="btn-primary report-ai-btn">${actionLabel}</button>`
-        : '';
-
     return `
-        <div class="report-ai-section" data-report-id="${report.id}">
+        <div class="report-ai-section">
             <div class="report-ai-head">
                 <div>
                     <div class="report-ai-kicker">Treatment Plan</div>
-                    <h4>Clinical recommendation and care guidance</h4>
+                    <h4>Get your personalized daily care guidance</h4>
+                    <p>Your morning, evening, and night recommendations will open on a separate page.</p>
                 </div>
             </div>
-            <div class="report-ai-error d-none"></div>
-            ${cached}
             <div class="report-action-row report-ai-action-row">
-                ${buttonHtml}
+                <a class="btn-primary report-treatment-link" href="/reports/${report.id}/treatment">
+                    View Treatment and Recommendations
+                </a>
             </div>
         </div>
     `;
+}
+
+function buildAiAnalysisResultHtml(rawText, reportData) {
+    if (!rawText) {
+        return '<div class="report-ai-empty">Your AI skin advisor summary will appear here after you generate it.</div>';
+    }
+
+    try {
+        const parsed = JSON.parse(rawText);
+        if (parsed && typeof parsed === 'object') {
+            const concerns = Array.isArray(parsed.key_concerns) ? parsed.key_concerns : [];
+            const recommendations = Array.isArray(parsed.recommendations)
+                ? parsed.recommendations
+                : (Array.isArray(parsed.recommended_steps) ? parsed.recommended_steps : []);
+            const weeklyTreatments = Array.isArray(parsed.weekly_treatments) ? parsed.weekly_treatments : [];
+            const morning = Array.isArray(parsed.morning_routine) ? parsed.morning_routine : [];
+            const evening = Array.isArray(parsed.evening_routine) ? parsed.evening_routine : [];
+            const night = Array.isArray(parsed.night_routine) ? parsed.night_routine : [];
+            const scoreValue = Number.isFinite(Number(reportData?.overall_skin_health_score))
+                ? Math.round(Number(reportData.overall_skin_health_score))
+                : null;
+            const hasSevereMetric = Object.values(reportData?.metrics || {}).some(function(metric) {
+                return metric?.severity === 'severe';
+            });
+            const needsDoctor = parsed.needs_doctor_review === true ||
+                (scoreValue !== null && scoreValue <= 30) || hasSevereMetric;
+            const routineCard = function(icon, title, subtitle, items) {
+                if (!items.length) return '';
+                return `
+                    <div class="report-routine-card">
+                        <div class="report-routine-icon" aria-hidden="true">${icon}</div>
+                        <div class="report-routine-content">
+                            <h5>${title}</h5>
+                            <span>${subtitle}</span>
+                            <ol>${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ol>
+                        </div>
+                    </div>
+                `;
+            };
+            return `
+                <div class="report-ai-result report-ai-structured">
+                    ${needsDoctor ? `
+                        <div class="report-doctor-alert" role="alert">
+                            <div class="report-doctor-alert-icon" aria-hidden="true">!</div>
+                            <div>
+                                <strong>Please consult a dermatologist</strong>
+                                <p>${escapeHtml(parsed.doctor_review_reason || 'This report shows a severe concern that needs professional assessment. Seek prompt care, especially for pain, swelling, bleeding, infection, or rapidly worsening symptoms.')}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${scoreValue !== null ? `
+                        <div class="report-ai-score-row">
+                            <div class="report-ai-score-chip">Report score</div>
+                            <div class="report-ai-score-value">${scoreValue}/100</div>
+                        </div>
+                    ` : ''}
+                    <div class="report-ai-score-card">
+                        <div class="report-ai-score-title">${escapeHtml(parsed.summary_title || 'Treatment Summary')}</div>
+                        <div class="report-ai-score-copy">${escapeHtml(parsed.score_interpretation || '')}</div>
+                    </div>
+                    ${concerns.length ? `
+                        <div class="report-ai-block">
+                            <h5>Key concerns</h5>
+                            <ul>${concerns.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${(morning.length || evening.length || night.length) ? `
+                        <div class="report-routine-heading">
+                            <h5>Your daily care routine</h5>
+                            <p>Personalized from your intake details and photo-based skin scores.</p>
+                        </div>
+                        <div class="report-routine-grid">
+                            ${routineCard('AM', 'Morning', 'Protect and prepare', morning)}
+                            ${routineCard('PM', 'Evening', 'Cleanse and reset', evening)}
+                            ${routineCard('ZZ', 'Night', 'Soothe and restore', night)}
+                        </div>
+                    ` : ''}
+                    ${recommendations.length ? `
+                        <div class="report-ai-block">
+                            <h5>Recommendations</h5>
+                            <ul>${recommendations.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+                        </div>
+                    ` : ''}
+                    ${weeklyTreatments.length ? `
+                        <div class="report-routine-heading report-weekly-heading">
+                            <h5>Once or twice weekly treatments</h5>
+                            <p>Targeted care selected for your skin concerns. These steps are not for everyday use.</p>
+                        </div>
+                        <div class="report-weekly-grid">
+                            ${weeklyTreatments.map(function(entry) {
+                                if (!entry || typeof entry !== 'object') return '';
+                                const weeklySteps = Array.isArray(entry.steps) ? entry.steps : [];
+                                return `
+                                    <div class="report-weekly-card">
+                                        <div class="report-weekly-day">${escapeHtml(entry.frequency || 'Once weekly')}</div>
+                                        <div class="report-weekly-focus">${escapeHtml(entry.treatment || 'Gentle weekly care')}</div>
+                                        ${entry.reason ? `<p class="report-weekly-reason">${escapeHtml(entry.reason)}</p>` : ''}
+                                        ${weeklySteps.length ? `<ul>${weeklySteps.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    ` : ''}
+                    ${parsed.safety_note ? `
+                        <div class="report-ai-safety">
+                            ${escapeHtml(parsed.safety_note)}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+    } catch (e) {
+        // fall through to text rendering
+    }
+
+    return `<div class="report-ai-result">${escapeHtml(rawText).replace(/\n/g, '<br>')}</div>`;
 }
 
 $(document).on('click', '.report-ai-btn', function() {
@@ -179,7 +287,13 @@ $(document).on('click', '.report-ai-btn', function() {
         success: function(res) {
             $section.find('.report-ai-empty').remove();
             $section.find('.report-ai-result').remove();
-            $section.append(`<div class="report-ai-result">${escapeHtml(res.ai_analysis).replace(/\n/g, '<br>')}</div>`);
+            const reportContext = {
+                overall_skin_health_score: Number($section.data('score')),
+                metrics: $section.data('critical') === true
+                    ? { critical_concern: { severity: 'severe' } }
+                    : {}
+            };
+            $section.append(buildAiAnalysisResultHtml(res.ai_analysis, reportContext));
             $btn.text('Refresh Treatment and Recommendation');
         },
         error: function(err) {

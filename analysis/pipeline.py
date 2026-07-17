@@ -25,17 +25,19 @@ FACE_SIZE = 400
 MAX_INPUT_DIM = 1000
 
 # Fractional (x0, y0, x1, y1) regions of the aligned/cropped square face image.
+# These are tuned to favor stable skin areas and avoid eyes, eyebrows, lips,
+# and the outer hairline as much as possible.
 ZONES = {
-    'forehead': (0.15, 0.06, 0.85, 0.28),
-    'left_cheek': (0.08, 0.50, 0.42, 0.80),
-    'right_cheek': (0.58, 0.50, 0.92, 0.80),
-    'undereye': (0.18, 0.42, 0.82, 0.55),
-    'perioral': (0.25, 0.72, 0.75, 0.92),
+    'forehead': (0.17, 0.07, 0.83, 0.26),
+    'left_cheek': (0.06, 0.46, 0.40, 0.82),
+    'right_cheek': (0.60, 0.46, 0.94, 0.82),
+    'undereye': (0.20, 0.40, 0.80, 0.55),
+    'perioral': (0.28, 0.70, 0.72, 0.92),
 }
 
 METRIC_LABELS = {
-    'acne': 'Acne / Pimples',
-    'pimple': 'Pimple Activity',
+    'acne': 'Acne Burden',
+    'pimple': 'Active Pimples',
     'dark_spots': 'Dark Spots',
     'redness': 'Redness',
     'dryness': 'Dryness',

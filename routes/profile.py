@@ -2,7 +2,6 @@ import os
 import uuid
 import hashlib
 from datetime import datetime, timezone
-import anthropic
 from flask import Blueprint, request, jsonify, current_app, url_for
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, SkinProfile, LifestyleProfile, AllergyProfile, DietProfile, Image, AnalysisResult
@@ -311,7 +310,7 @@ def upload_images():
                 'overall_skin_health_score': None,
                 'metrics': None,
                 'stage_details': None,
-                'message': f'Image analysis failed: {e}',
+                'message': 'Image analysis failed. Please upload new images or click new images and submit again.',
             }
             fallback_result = AnalysisResult(
                 user_id=user_id,
@@ -327,10 +326,10 @@ def upload_images():
             db.session.add(fallback_result)
             db.session.commit()
             return jsonify({
-                "msg": "Images uploaded, but analysis failed",
+                "msg": "Image analysis failed. Please upload new images or click new images and submit again.",
                 "error": str(e),
                 "request_id": request_id,
-                "report": _serialize_result(fallback_result),
+                "status": "failed",
             }), 200
         except Exception:
             current_app.logger.exception('Failed to persist fallback analysis result')
@@ -376,18 +375,13 @@ def get_ai_analysis(report_id):
     if result.status != 'ok':
         return jsonify({"msg": "This report has no analysis to summarize"}), 400
 
-    if result.ai_analysis:
-        return jsonify({"ai_analysis": result.ai_analysis}), 200
-
-    if not current_app.config.get('ANTHROPIC_API_KEY'):
+    if not current_app.config.get('OPENROUTER_API_KEY'):
         return jsonify({"msg": "AI analysis is not configured on this server"}), 503
 
     try:
         ai_analysis = generate_ai_analysis(_serialize_result(result, include_images=False))
-    except anthropic.APIStatusError as e:
-        return jsonify({"msg": f"AI analysis failed: {e.message}"}), 502
-    except anthropic.APIConnectionError:
-        return jsonify({"msg": "AI analysis failed: could not reach the AI service"}), 502
+    except Exception as e:
+        return jsonify({"msg": f"AI analysis failed: {e}"}), 502
 
     result.ai_analysis = ai_analysis
     db.session.commit()

@@ -38,6 +38,10 @@ def create_app():
     def report_detail(report_id):
         return render_template('report_detail.html', report_id=report_id)
 
+    @app.route('/reports/<int:report_id>/treatment')
+    def treatment_detail(report_id):
+        return render_template('treatment_detail.html', report_id=report_id)
+
     return app
 
 if __name__ == '__main__':

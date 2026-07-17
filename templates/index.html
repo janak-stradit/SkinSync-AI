@@ -12,6 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Custom CSS -->
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
 </head>
 <body>
 
@@ -147,6 +148,16 @@
                                 <div class="field-group">
                                     <label class="field-label">Email</label>
                                     <input type="email" class="field-input" id="reg-email" autocomplete="off" required>
+                                </div>
+                                <div class="field-group">
+                                    <label class="field-label" for="reg-gender">Gender</label>
+                                    <select class="field-input" id="reg-gender" required>
+                                        <option value="" selected disabled>Select your gender</option>
+                                        <option value="female">Female</option>
+                                        <option value="male">Male</option>
+                                        <option value="non_binary">Non-binary</option>
+                                        <option value="prefer_not_to_say">Prefer not to say</option>
+                                    </select>
                                 </div>
                                 <div class="field-group">
                                     <label class="field-label">Password</label>
@@ -608,6 +619,11 @@
                             <div class="camera-viewfinder">
                                 <video id="camera-video" autoplay playsinline muted></video>
                                 <div class="camera-face-guide" aria-hidden="true"></div>
+                                <div class="camera-capture-flash" id="camera-capture-flash" aria-hidden="true"></div>
+                                <div class="camera-guide-badge" id="camera-guide-badge" aria-live="polite">
+                                    <span class="camera-guide-dot"></span>
+                                    <span id="camera-guide-text">Center your face</span>
+                                </div>
                             </div>
                             <canvas id="camera-canvas" class="d-none"></canvas>
                             <div class="camera-actions">
